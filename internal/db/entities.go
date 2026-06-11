@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -200,7 +201,16 @@ const (
 )
 
 func (p *Vote) Scan(value interface{}) error {
-	*p = Vote(value.([]byte))
+	switch v := value.(type) {
+	case []byte:
+		*p = Vote(v)
+	case string:
+		*p = Vote(v)
+	case nil:
+		*p = ""
+	default:
+		return fmt.Errorf("unsupported type for Vote: %T", value)
+	}
 	return nil
 }
 

@@ -471,7 +471,9 @@ func (st *Storage) initPaging(p *Pagination, options Options) {
 				Limit(30).
 				Find(&notesAndProfiles)
 
-			p.Cursor = notesAndProfiles[len(notesAndProfiles)-1].ID
+			if len(notesAndProfiles) > 0 {
+				p.Cursor = notesAndProfiles[len(notesAndProfiles)-1].ID
+			}
 		}
 	}
 }
