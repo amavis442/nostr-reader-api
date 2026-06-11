@@ -42,16 +42,13 @@ type DbConfig struct {
  * The filter is used for certain words in de posts we want to filter out, because they can be spam
  */
 type Storage struct {
-	Filter        []string
-	Count         int64
-	GormDB        *gorm.DB
-	Env           string
-	Pubkey        string
-	Notifications []string
-	DbConfig      *DbConfig
+	Filter   []string
+	Count    int64
+	GormDB   *gorm.DB
+	Env      string
+	Pubkey   string
+	DbConfig *DbConfig
 }
-
-var Missing_event_ids []string
 
 func (st *Storage) SetEnvironment(env string) {
 	st.Env = env
@@ -78,8 +75,6 @@ func (st *Storage) CheckError(err error) {
 func (st *Storage) Connect(ctx context.Context, cfg *DbConfig) error {
 	var err error
 
-	st.Notifications = make([]string, 0)
-
 	st.DbConfig = cfg
 
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Europe/Amsterdam",
@@ -93,8 +88,6 @@ func (st *Storage) Connect(ctx context.Context, cfg *DbConfig) error {
 		Logger:      gormLogger.Default.LogMode(gormLogger.Silent),
 		PrepareStmt: true,
 	})
-
-	Missing_event_ids = make([]string, 0)
 
 	log.Println("Connect() -> Connected to database:", cfg.Dbname)
 	return err
@@ -215,11 +208,9 @@ func (st *Storage) SaveProfiles(ctx context.Context, evs []*Event) error {
  * Save the events, mostly notes. Ignore duplicate events based on unique event id
  * This will normalize the content tag of the events with all the unwanted markup (Myaby put this in a helper function)
  */
-func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) ([]string, error) {
-	var pubkeys = make([]string, 0)
-
-	st.Notifications = make([]string, 0)  // reset if already set
-	Missing_event_ids = make([]string, 0) //reset
+func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) (pubkeys []string, missingEventIds []string, err error) {
+	pubkeys = make([]string, 0)
+	missingEventIds = make([]string, 0)
 
 	for _, ev := range evs {
 		if ev.Event.CreatedAt.Time().Unix() > time.Now().Unix() { // Ignore events with timestamp in the future.
@@ -229,18 +220,18 @@ func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) ([]string, erro
 		etags, _, _, _, _, _ := tag.ProcessTags(ev.Event, st.Pubkey)
 
 		if ev.Event.Kind == 0 {
-			err := st.SaveProfile(ctx, ev)
-			if err != nil {
-				return []string{}, err
+			if err := st.SaveProfile(ctx, ev); err != nil {
+				return nil, nil, err
 			}
 		}
 
 		if ev.Event.Kind == 1 {
-			note, err := st.SaveNote(ctx, ev)
+			note, missing, err := st.SaveNote(ctx, ev)
 			if err != nil {
-				return []string{}, err
+				return nil, nil, err
 			}
 			pubkeys = append(pubkeys, note.Pubkey)
+			missingEventIds = append(missingEventIds, missing...)
 		}
 
 		// votes
@@ -258,11 +249,12 @@ func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) ([]string, erro
 			}
 		}
 	}
-	return pubkeys, nil
+	return pubkeys, missingEventIds, nil
 }
 
-func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
+func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, []string, error) {
 	var tree tag.EventTree
+	var missing []string
 	ev := event.Event
 	etags, ptags, hasNotification, isRoot, tree, _ := tag.ProcessTags(ev, st.Pubkey)
 	ptagsNum := len(ptags)
@@ -316,7 +308,7 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(ev); err != nil {
 		slog.Warn(logger.GetCallerInfo(1), "error", err.Error())
-		return Note{}, err
+		return Note{}, nil, err
 	}
 
 	data := []byte(ev.PubKey + ev.Content)
@@ -346,7 +338,7 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 	var searchProfile Profile
 	if err := st.GormDB.Model(&Profile{}).Where(Profile{Pubkey: ev.PubKey}).Find(&searchProfile).Error; err != nil {
 		slog.Error(fmt.Sprintf("%s SaveNote() -> Query error", logger.GetCallerInfo(1)), "pubkey", ev.PubKey, "error", err.Error())
-		return Note{}, err
+		return Note{}, nil, err
 	}
 	if searchProfile.ID > 0 {
 		note.ProfileID = &searchProfile.ID
@@ -363,7 +355,7 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 
 	if err != nil {
 		slog.Warn(logger.GetCallerInfo(1), "error", err.Error())
-		return Note{}, err
+		return Note{}, nil, err
 	}
 
 	if note.ID > 0 && len(tree.RootTag) > 0 {
@@ -386,10 +378,10 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 		err = st.GormDB.Model(&Note{}).Where(&Note{EventId: tree.RootTag}).Find(&searchNoteRootNote).Error
 		if err != nil {
 			slog.Error(logger.GetCallerInfo(1), "error", err.Error())
-			return Note{}, err
+			return Note{}, nil, err
 		}
 		if searchNoteRootNote.ID == 0 {
-			Missing_event_ids = append(Missing_event_ids, tree.RootTag)
+			missing = append(missing, tree.RootTag)
 		}
 
 		// Same goes for reply which is replied to
@@ -398,15 +390,15 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 			err = st.GormDB.Model(&Note{}).Where(&Note{EventId: tree.ReplyTag}).Find(&searchNoteReplyNote).Error
 			if err != nil {
 				slog.Error(logger.GetCallerInfo(1), "error", err.Error())
-				return Note{}, err
+				return Note{}, nil, err
 			}
 			if searchNoteReplyNote.ID == 0 {
-				Missing_event_ids = append(Missing_event_ids, tree.ReplyTag)
+				missing = append(missing, tree.ReplyTag)
 			}
 		}
 	}
 
-	return note, nil
+	return note, missing, nil
 }
 
 func (st *Storage) SaveReaction(ctx context.Context, ev *nostr.Event, targetEventId string, notesId uint) {

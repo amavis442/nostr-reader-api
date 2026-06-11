@@ -301,7 +301,7 @@ func (c *Controller) StartSync() http.HandlerFunc {
 		evs := c.Nostr.GetEvents(ctx, filter)
 		var pubkeys = make([]string, 0)
 		var err error
-		pubkeys, err = c.Db.SaveEvents(ctx, evs)
+		pubkeys, _, err = c.Db.SaveEvents(ctx, evs)
 		if err != nil {
 			response.Status = "error"
 			response.Message = err.Error()
@@ -942,8 +942,6 @@ func (c *Controller) SearchEvent() http.HandlerFunc {
  */
 func (c *Controller) PreviewLink() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var mu sync.Mutex
-
 		defer r.Body.Close()
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -959,9 +957,7 @@ func (c *Controller) PreviewLink() http.HandlerFunc {
 		t := strings.TrimSpace(url.Url)
 		s := strings.Split(t, "\n")
 
-		mu.Lock()
 		result, _ := URLPreview(ctx, s[0])
-		mu.Unlock()
 
 		err = json.NewEncoder(w).Encode(result)
 		if err != nil {
