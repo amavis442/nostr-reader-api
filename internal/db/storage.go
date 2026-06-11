@@ -5,7 +5,6 @@ import (
 	"amavis442/nostr-reader/internal/tag"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -305,10 +304,7 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, []string, 
 		return Note{}, nil, err
 	}
 
-	data := []byte(ev.PubKey + ev.Content)
-	hash := sha256.Sum256(data)
-	fingerprint := fmt.Sprintf("%x", hash[:])
-	slog.Info("Fingerprint", "fingerprint", fingerprint)
+	fingerprint := contentFingerprint(ev.PubKey, ev.Content)
 
 	newUUID, _ := uuid.NewV7()
 	note := Note{}
@@ -343,13 +339,21 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, []string, 
 		tx = tx.Debug()
 	}
 
-	//if !hasNotification {
-	err = tx.Create(&note).Error
-	//}
+	result := tx.Create(&note)
+	if result.Error != nil {
+		slog.Warn(logger.GetCallerInfo(1), "error", result.Error.Error())
+		return Note{}, nil, result.Error
+	}
 
-	if err != nil {
-		slog.Warn(logger.GetCallerInfo(1), "error", err.Error())
-		return Note{}, nil, err
+	// Duplicate: the note already exists, either the same event from another
+	// relay (event_id conflict) or a repost with identical content
+	// (content_hash conflict). Merge this copy's relay URLs onto the stored
+	// note and skip re-processing its thread and notification.
+	if result.RowsAffected == 0 {
+		if err := st.mergeNoteUrls(ctx, fingerprint, note.Urls); err != nil {
+			slog.Warn(logger.GetCallerInfo(1), "error", err.Error())
+		}
+		return note, missing, nil
 	}
 
 	if note.ID > 0 && len(tree.RootTag) > 0 {
@@ -393,6 +397,20 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, []string, 
 	}
 
 	return note, missing, nil
+}
+
+// mergeNoteUrls appends the given relay URLs to the stored note carrying this
+// content fingerprint, de-duplicating the resulting array. It is used when a
+// duplicate event is skipped on insert so we still record every relay the
+// content was seen on.
+func (st *Storage) mergeNoteUrls(ctx context.Context, contentHash string, urls []string) error {
+	if len(urls) == 0 {
+		return nil
+	}
+	return st.GormDB.WithContext(ctx).
+		Model(&Note{}).
+		Where("content_hash = ?", contentHash).
+		Update("urls", gorm.Expr("ARRAY(SELECT DISTINCT unnest(urls || ?::text[]))", pq.Array(urls))).Error
 }
 
 func (st *Storage) SaveReaction(ctx context.Context, ev *nostr.Event, targetEventId string, notesId uint) {
