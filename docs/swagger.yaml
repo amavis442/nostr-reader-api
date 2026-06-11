@@ -173,7 +173,7 @@ paths:
           description: error
           schema:
             type: string
-      summary: Block an anoying user
+      summary: Block an annoying user
       tags:
       - user
   /api/bookmark:

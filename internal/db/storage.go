@@ -38,7 +38,7 @@ type DbConfig struct {
 }
 
 /**
- * We neede an active database connection object.
+ * We need an active database connection object.
  * The filter is used for certain words in de posts we want to filter out, because they can be spam
  */
 type Storage struct {
@@ -200,7 +200,7 @@ func (st *Storage) SaveProfiles(ctx context.Context, evs []*Event) error {
 
 /**
  * Save the events, mostly notes. Ignore duplicate events based on unique event id
- * This will normalize the content tag of the events with all the unwanted markup (Myaby put this in a helper function)
+ * This will normalize the content tag of the events with all the unwanted markup (Maybe put this in a helper function)
  */
 func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) (pubkeys []string, missingEventIds []string, err error) {
 	pubkeys = make([]string, 0)

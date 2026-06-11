@@ -137,7 +137,7 @@ func URLPreview(ctx context.Context, url string) (map[string]interface{}, error)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return map[string]interface{}{"url": url, "data": nil, "status": "error", "respcode": fmt.Sprint(resp.StatusCode), "error": "request not succesfull"}, errors.New("request not succesfull " + strconv.Itoa(resp.StatusCode))
+		return map[string]interface{}{"url": url, "data": nil, "status": "error", "respcode": fmt.Sprint(resp.StatusCode), "error": "request not successful"}, errors.New("request not successful " + strconv.Itoa(resp.StatusCode))
 	}
 
 	contentType := resp.Header.Get("Content-type")
