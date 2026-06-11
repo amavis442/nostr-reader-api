@@ -1,6 +1,6 @@
 ALTER SCHEMA public OWNER TO nostr;
 
-CREATE IF NOT EXISTS TABLE public.notes (
+CREATE TABLE IF NOT EXISTS public.notes (
     id bigint NOT NULL,
     event_id text NOT NULL,
     pubkey character varying(100) NOT NULL,
