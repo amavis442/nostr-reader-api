@@ -54,7 +54,6 @@ func main() {
 	done := make(chan bool, 1)
 	go func() {
 		sig := <-exitChan
-		logFile.Close()
 		fmt.Println(sig)
 		done <- true
 	}()
@@ -62,6 +61,7 @@ func main() {
 	go func() {
 		<-done
 		fmt.Println("Closing app")
+		logFile.Close()
 		os.Exit(0)
 	}()
 
@@ -112,7 +112,7 @@ func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Println(err.Error())
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	cfg.Interval = uint(*syncIntervalPtr)
@@ -137,7 +137,7 @@ func main() {
 
 	if err != nil {
 		log.Println(err.Error())
-		os.Exit(0)
+		os.Exit(1)
 	}
 
 	if cleanStorage {
