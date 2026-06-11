@@ -29,9 +29,12 @@ func ProcessTags(ev *nostr.Event, pubkey string) (etags []string, ptags []string
 	hasNotification = false
 	hasRootOrReplyTag := false
 	for _, tag := range ev.Tags {
+		if len(tag) == 0 {
+			continue
+		}
 		switch {
 		case tag[0] == "e":
-			if len(tag) < 1 || len(tag[1]) != 64 {
+			if len(tag) < 2 || len(tag[1]) != 64 {
 				continue
 			} else {
 				etags = append(etags, tag[1])
@@ -47,7 +50,7 @@ func ProcessTags(ev *nostr.Event, pubkey string) (etags []string, ptags []string
 				hasRootOrReplyTag = true
 			}
 		case tag[0] == "p":
-			if len(tag) < 1 || len(tag[1]) != 64 {
+			if len(tag) < 2 || len(tag[1]) != 64 {
 				log.Println("Tag:: P# tag not valid: ", tag)
 				continue
 			} else {

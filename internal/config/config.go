@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -74,7 +75,7 @@ func LoadConfig() (*Config, error) {
 
 	var pubKey string
 
-	if cfg.Nostr.PrivateKey[:4] == "nsec" {
+	if strings.HasPrefix(cfg.Nostr.PrivateKey, "nsec") {
 		if _, s, err := nip19.Decode(cfg.Nostr.PrivateKey); err == nil {
 			if pubKey, err = nostr.GetPublicKey(s.(string)); err != nil {
 				return nil, err
