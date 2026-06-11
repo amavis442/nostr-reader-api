@@ -535,20 +535,20 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 	tx := st.GormDB.Debug().Where("followed = ? and bookmarked = ?", options.Follow, options.BookMark)
 
 	if state == stateName[StateInit] || state == stateName[StateRefresh] {
-		tx.Where("id > ?", p.Cursor).
+		tx = tx.Where("id > ?", p.Cursor).
 			Order("id ASC")
 	}
 
 	if state == stateName[StateNext] {
-		tx.Where("id > ?", p.NextCursor).
+		tx = tx.Where("id > ?", p.NextCursor).
 			Order("id ASC")
 	}
 	if state == stateName[StatePrev] {
-		tx.Where("id < ?", p.PreviousCursor).
+		tx = tx.Where("id < ?", p.PreviousCursor).
 			Order("id DESC")
 	}
 
-	tx.Limit(int(p.GetPerPage())) // Last one is not shown and only used for the next cursor
+	tx = tx.Limit(int(p.GetPerPage())) // Last one is not shown and only used for the next cursor
 
 	var rows []NotesAndProfiles
 	tx.Find(&rows)
@@ -631,13 +631,35 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	slog.Info("State is: ", "state", state)
 
 	tx := st.GormDB.Debug().Model(&Note{}).
-		Joins("JOIN notifications ON (notifications.note_id = notes.id)").
-		Limit(int(p.GetPerPage())) // Last one is not shown and only used for the next cursor
+		Joins("JOIN notifications ON (notifications.note_id = notes.id)")
+
+	// Apply the cursor to the driving query so pagination actually advances.
+	switch state {
+	case stateName[StateNext]:
+		tx = tx.Where("notes.id < ?", p.NextCursor)
+	case stateName[StatePrev]:
+		tx = tx.Where("notes.id > ?", p.PreviousCursor)
+	case stateName[StateRefresh]:
+		tx = tx.Where("notes.id > ?", p.Cursor)
+	}
+	tx = tx.Order("notes.id DESC").Limit(int(p.GetPerPage()))
 
 	var notes []Note
 	tx.Find(&notes)
 	if len(notes) == 0 {
 		return &[]Event{}, nil
+	}
+
+	// Cursors track the notification notes themselves (ordered by id DESC):
+	// the last (oldest) id pages forward, the first (newest) id pages back.
+	perPage := int(p.GetPerPage())
+	p.NextCursor = 0
+	p.PreviousCursor = 0
+	if len(notes) >= perPage {
+		p.NextCursor = uint64(notes[len(notes)-1].ID)
+	}
+	if state != stateName[StateInit] {
+		p.PreviousCursor = uint64(notes[0].ID)
 	}
 
 	var root_tags []string
@@ -647,7 +669,6 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 		json.Unmarshal(row.Raw, &ev)
 		_, _, _, _, tree, _ := tag.ProcessTags(ev, st.Pubkey)
 
-		fmt.Println(tree.RootTag)
 		root_tags = append(root_tags, tree.RootTag)
 	}
 	var rows []NotesAndProfiles
@@ -655,36 +676,6 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	if err != nil {
 		slog.Error(logger.GetCallerInfo(1), "error", err.Error())
 		return nil, nil
-	}
-
-	if len(notes) == 0 {
-		return &[]Event{}, nil
-	}
-
-	p.NextCursor = 0
-	p.PreviousCursor = 0
-
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].ID > rows[j].ID
-	})
-
-	if (state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		next_cursor := rows[0]
-		p.NextCursor = next_cursor.ID
-	}
-
-	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		next_cursor := rows[0]
-		p.NextCursor = next_cursor.ID
-	}
-
-	if state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh] {
-		prev_cursor := rows[len(rows)-1]
-		p.PreviousCursor = prev_cursor.ID
-	}
-	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		prev_cursor := rows[len(rows)-1]
-		p.PreviousCursor = prev_cursor.ID
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
