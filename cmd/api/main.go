@@ -47,7 +47,6 @@ func main() {
 	mw := io.MultiWriter(os.Stdout, logFile)
 	log.SetOutput(mw)
 	logger := slog.New(slog.NewJSONHandler(mw, nil))
-	slog.NewTextHandler(mw, nil)
 	slog.SetDefault(logger)
 	defer logFile.Close()
 
