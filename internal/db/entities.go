@@ -18,7 +18,7 @@ type Event struct {
 	Profile  Profile           `json:"profile"`
 	Etags    []string          `json:"-"`
 	Ptags    []string          `json:"-"`
-	Garbage  bool              `json:"gargabe"`
+	Garbage  bool              `json:"garbage"`
 	Children map[string]*Event `json:"children"`
 	Tree     int64             `json:"tree"`
 	RootId   string            `json:"-"`

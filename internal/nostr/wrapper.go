@@ -424,7 +424,7 @@ func (wrapper *Wrapper) DoPublishMetaData(ctx context.Context, user *db.Profile)
 		if err != nil {
 			slog.Error(relay.URL, "error", err)
 		} else {
-			slog.Info("Publish to:", "ralay", relay.URL)
+			slog.Info("Publish to:", "relay", relay.URL)
 			success.Add(1)
 		}
 		return true

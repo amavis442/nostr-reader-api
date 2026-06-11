@@ -88,7 +88,7 @@ const docTemplate = `{
                 "tags": [
                     "user"
                 ],
-                "summary": "Block an anoying user",
+                "summary": "Block an annoying user",
                 "parameters": [
                     {
                         "description": "Body for the retrieval of data",

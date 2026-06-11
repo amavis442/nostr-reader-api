@@ -373,7 +373,7 @@ func (c *Controller) SyncNote() http.HandlerFunc {
 }
 
 // BlockUser godoc
-// @Summary      Block an anoying user
+// @Summary      Block an annoying user
 // @Description  Block user
 // @Tags         user
 // @Accept       json
@@ -1032,7 +1032,7 @@ func (c *Controller) Publish() http.HandlerFunc {
 				slog.Warn(logger.GetCallerInfo(1)+"cannot broadcast", "error", err.Error())
 			}
 			if !success {
-				slog.Warn(logger.GetCallerInfo(1) + "cannot broadcast succesfully")
+				slog.Warn(logger.GetCallerInfo(1) + "cannot broadcast successfully")
 			}
 			wg.Done()
 		}(ctx, c, &postEv)
