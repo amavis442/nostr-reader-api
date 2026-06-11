@@ -311,9 +311,9 @@ func (c *Controller) StartSync() http.HandlerFunc {
 		var tresholdTime int64 = time.Now().Unix() - 60*60*24
 
 		pubkeys, _ = c.Db.CheckProfiles(ctx, pubkeys, tresholdTime)
-		// Last but not least, try to get the user metadata
-		c.Nostr.UpdateProfiles(ctx, pubkeys)
-		err = c.Db.SaveProfiles(ctx, evs)
+		// Last but not least, try to get the user metadata and persist it.
+		profileEvents := c.Nostr.UpdateProfiles(ctx, pubkeys)
+		err = c.Db.SaveProfiles(ctx, profileEvents)
 		if err != nil {
 			response.Status = "error"
 			response.Message = err.Error()
