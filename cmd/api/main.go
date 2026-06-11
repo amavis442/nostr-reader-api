@@ -199,20 +199,20 @@ func intervalTask(wg *sync.WaitGroup, ctx context.Context, st *db.Storage, nostr
 	filter := nostrWrapper.GetEventData(createdAt, false)
 	evs := nostrWrapper.GetEvents(ctx, filter)
 
-	_, err := st.SaveEvents(ctx, evs)
+	_, missingEventIds, err := st.SaveEvents(ctx, evs)
 	if err != nil {
 		slog.Error(err.Error())
 	}
 
-	if len(db.Missing_event_ids) > 0 {
+	if len(missingEventIds) > 0 {
 		slog.Info("Sniping missing events...........")
 		//need to try to get them
 		filter = nostr.Filter{
-			IDs: db.Missing_event_ids,
+			IDs: missingEventIds,
 		}
 		evs := nostrWrapper.GetEvents(ctx, filter)
 
-		_, err := st.SaveEvents(ctx, evs)
+		_, _, err := st.SaveEvents(ctx, evs)
 		if err != nil {
 			log.Println(err)
 		}
