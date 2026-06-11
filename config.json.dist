@@ -7,7 +7,9 @@
         "host": "localhost"
     },
     "server": {
-        "port": 8080
+        "port": 8080,
+        "allowed_ips": [],
+        "allowed_origins": []
     },
     "interval": 5,
     "nostr': {

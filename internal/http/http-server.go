@@ -13,7 +13,13 @@ import (
 )
 
 type ServerConfig struct {
-	Port int64
+	Port int64 `json:"port"`
+	// AllowedIPs lists client IPs (besides loopback) that may reach the API.
+	// Empty means loopback-only.
+	AllowedIPs []string `json:"allowed_ips"`
+	// AllowedOrigins lists the CORS origins permitted to call the API. Empty
+	// falls back to localhost origins.
+	AllowedOrigins []string `json:"allowed_origins"`
 }
 
 type HttpServer struct {
@@ -25,7 +31,7 @@ type HttpServer struct {
 }
 
 func (s *HttpServer) Routes(c *Controller, port string) {
-	s.Router = routes(c, port)
+	s.Router = routes(c, port, s.Server)
 }
 
 // @title Nostr Reader API
