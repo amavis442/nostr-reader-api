@@ -1051,14 +1051,14 @@ func (st *Storage) FindEvent(ctx context.Context, id string) (Event, error) {
 	e.id, e.event_id, e.pubkey, e.kind, e.event_created_at, e.content,e.tags_full::json,e.sig, 
 	e.etags, e.ptags , u.name, u.about , u.picture,
 	u.website, u.nip05, u.lud16, u.display_name, 
-	CASE WHEN length(f.pubkey) > 0 THEN TRUE ELSE FALSE end followed
-	CASE WHEN length(b.event_id) > 0 THEN TRUE ELSE FALSE end followed
-	FROM trees t, notes e 
-	LEFT JOIN profiles u ON (u.pubkey = e.pubkey ) 
-	LEFT JOIN blocks b on (b.pubkey = e.pubkey) 
+	CASE WHEN length(f.pubkey) > 0 THEN TRUE ELSE FALSE end followed,
+	CASE WHEN length(bm.event_id) > 0 THEN TRUE ELSE FALSE end bookmarked
+	FROM trees t, notes e
+	LEFT JOIN profiles u ON (u.pubkey = e.pubkey )
+	LEFT JOIN blocks b on (b.pubkey = e.pubkey)
 	LEFT JOIN seens s on (s.event_id = e.event_id)
 	LEFT JOIN follows f ON (f.pubkey = e.pubkey)
-	LEFT JOIN bookmarks b ON (b.note_id = e.id)
+	LEFT JOIN bookmarks bm ON (bm.note_id = e.id)
 	WHERE root_event_id IN ($1)
 	AND e.event_id = t.event_id
 	AND e.kind = 1 AND b.pubkey IS NULL AND s.event_id IS NULL AND e.garbage = false;`
@@ -1067,6 +1067,7 @@ func (st *Storage) FindEvent(ctx context.Context, id string) (Event, error) {
 	treeRows, err = st.GormDB.WithContext(ctx).Raw(treeQry, event.Event.ID).Rows()
 	if err != nil {
 		log.Println("FindEvent() -> Query:: ", err)
+		return event, err
 	}
 	for treeRows.Next() {
 		var childEvent Event
