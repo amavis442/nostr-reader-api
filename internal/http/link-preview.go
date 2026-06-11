@@ -14,10 +14,23 @@ import (
 	parse "net/url"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/html"
 )
+
+// isDisallowedIP reports whether an address points at a non-public host that a
+// link preview should never reach (loopback, private, link-local, etc.). It is
+// the guard against server-side request forgery.
+func isDisallowedIP(ip net.IP) bool {
+	return ip.IsLoopback() ||
+		ip.IsPrivate() ||
+		ip.IsUnspecified() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsMulticast()
+}
 
 // HTMLMeta data to response
 type HTMLMeta struct {
@@ -84,6 +97,23 @@ func URLPreview(ctx context.Context, url string) (map[string]interface{}, error)
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
 				Timeout: ConnectMaxWaitTime,
+				// Control runs after DNS resolution for every connection
+				// attempt (including redirects), so it blocks SSRF even when
+				// a hostname resolves to an internal address.
+				Control: func(network, address string, _ syscall.RawConn) error {
+					host, _, err := net.SplitHostPort(address)
+					if err != nil {
+						return err
+					}
+					ip := net.ParseIP(host)
+					if ip == nil {
+						return fmt.Errorf("cannot parse dial address: %s", address)
+					}
+					if isDisallowedIP(ip) {
+						return fmt.Errorf("refusing to connect to non-public address: %s", ip)
+					}
+					return nil
+				},
 			}).DialContext,
 		},
 		Timeout: 15 * time.Second,
@@ -120,8 +150,6 @@ func URLPreview(ctx context.Context, url string) (map[string]interface{}, error)
 	}
 	meta.Url = url
 	meta.ContentType = contentType
-
-	defer resp.Body.Close()
 
 	data := map[string]interface{}{"url": url, "data": meta, "status": "ok", "respcode": fmt.Sprint(resp.StatusCode), "error": ""}
 	return data, nil
