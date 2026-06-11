@@ -11,9 +11,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -172,14 +170,7 @@ func (st *Storage) SaveProfile(ctx context.Context, ev *Event) error {
 
 	var searchProfile Profile
 	if err := st.GormDB.Model(&Profile{}).Where(Profile{Pubkey: ev.Event.PubKey}).Find(&searchProfile).Error; err != nil {
-		switch {
-		case err == sql.ErrNoRows:
-			slog.Info("FindProfile() -> Query:: 404 no profile with pubkey", "pubkey", ev.Event.PubKey)
-		default:
-			_, file, line, _ := runtime.Caller(0)
-			slog.Error(fmt.Sprintf("FindProfile(%s::%d) -> Query:: 502 query error: %v", file, line, err))
-			os.Exit(1)
-		}
+		slog.Error(fmt.Sprintf("%s SaveProfile() -> Query error", logger.GetCallerInfo(1)), "pubkey", ev.Event.PubKey, "error", err.Error())
 		return err
 	}
 
@@ -354,13 +345,7 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, error) {
 
 	var searchProfile Profile
 	if err := st.GormDB.Model(&Profile{}).Where(Profile{Pubkey: ev.PubKey}).Find(&searchProfile).Error; err != nil {
-		switch {
-		case err == sql.ErrNoRows:
-			slog.Info("FindProfile() -> Query:: 404 no profile with pubkey", "pubkey", ev.PubKey)
-		default:
-			slog.Error(fmt.Sprintf("%s FindProfile() -> Query:: 502 query.", logger.GetCallerInfo(1)), "error", err.Error())
-			os.Exit(1)
-		}
+		slog.Error(fmt.Sprintf("%s SaveNote() -> Query error", logger.GetCallerInfo(1)), "pubkey", ev.PubKey, "error", err.Error())
 		return Note{}, err
 	}
 	if searchProfile.ID > 0 {
@@ -609,7 +594,8 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 
 	eventMap, keys, seenMap, err := st.procesEventRows(&rows)
 	if err != nil {
-		log.Fatal(err.Error())
+		slog.Error(logger.GetCallerInfo(1), "error", err.Error())
+		return &[]Event{}, err
 	}
 
 	tx = st.GormDB.WithContext(ctx).Model(&Seen{})
@@ -713,7 +699,8 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 
 	eventMap, keys, _, err := st.procesEventRows(&rows)
 	if err != nil {
-		log.Fatal(err.Error())
+		slog.Error(logger.GetCallerInfo(1), "error", err.Error())
+		return &[]Event{}, err
 	}
 
 	st.getChildren(ctx, eventMap)
@@ -1064,10 +1051,12 @@ func (st *Storage) FindEvent(ctx context.Context, id string) (Event, error) {
 	err := row.Scan(&event.Event.ID, &event.Event.PubKey, &event.Event.Kind, &event.Event.CreatedAt, &event.Event.Content, &event.Event.Tags, &event.Event.Sig,
 		(pq.Array)(&event.Etags), (pq.Array)(&event.Ptags), &name, &about, &picture, &website, &nip05, &lud16, &displayname)
 	switch err {
+	case nil:
+		// found
 	case sql.ErrNoRows:
 		log.Printf("FindEvent() -> Query:: 404 no event with id %s\n", id)
 	default:
-		log.Fatalf("FindEvent() -> Query:: 502 query error: %v\n", err)
+		log.Printf("FindEvent() -> Query:: 502 query error: %v\n", err)
 	}
 	event.Tree = 1
 	event.RootId = event.Event.ID
@@ -1311,12 +1300,8 @@ func (st *Storage) GetLastTimeStamp(ctx context.Context) int64 {
 func (st *Storage) FindProfile(ctx context.Context, pubkey string) (Profile, error) {
 	var profile Profile
 	err := st.GormDB.Debug().Model(&Profile{}).Where("pubkey = ?", pubkey).Find(&profile).Error
-
-	switch {
-	case err == sql.ErrNoRows:
-		slog.Info(fmt.Sprintf("FindProfile() -> Query:: 404 no profile with pubkey %s\n", pubkey))
-	default:
-		slog.Info(fmt.Sprintf("FindProfile() -> Query:: 502 query error: %v\n", err))
+	if err != nil {
+		slog.Error(fmt.Sprintf("FindProfile() -> Query error for pubkey %s", pubkey), "error", err.Error())
 	}
 
 	return profile, err
@@ -1325,12 +1310,8 @@ func (st *Storage) FindProfile(ctx context.Context, pubkey string) (Profile, err
 func (st *Storage) SearchProfiles(ctx context.Context, searchStr string) (*[]Profile, error) {
 	var profile []Profile
 	err := st.GormDB.Model(&Profile{}).Where("pubkey = $1 OR LOWER(name) LIKE LOWER($2)", searchStr, "%"+searchStr+"%").Find(&profile).Error
-
-	switch {
-	case err == sql.ErrNoRows:
-		slog.Info(fmt.Sprintf("SearchProfiles() -> Query:: 404 no profile with pubkey %s\n", searchStr))
-	default:
-		slog.Info(fmt.Sprintf("SearchProfiles() -> Query:: 502 query error: %v\n", err))
+	if err != nil {
+		slog.Error(fmt.Sprintf("SearchProfiles() -> Query error for %s", searchStr), "error", err.Error())
 	}
 
 	return &profile, err
