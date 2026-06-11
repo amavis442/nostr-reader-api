@@ -124,7 +124,6 @@ func main() {
 
 	slog.Info(fmt.Sprintf("Your public key is: %s", cfg.Nostr.PubKey))
 	slog.Info(fmt.Sprintf("Your npub is: %s", cfg.Nostr.Npub))
-	slog.Info(fmt.Sprintf("Your nsec is: %s", cfg.Nostr.Nsec))
 
 	var ctx context.Context = context.Background()
 	var nostrWrapper wrapper.Wrapper
