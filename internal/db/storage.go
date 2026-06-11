@@ -54,19 +54,13 @@ func (st *Storage) SetEnvironment(env string) {
 	st.Env = env
 }
 
-/**
- * Since the above structs should be in sync with the database tables they represent.
- * I put the create statement of the database here even when it more a database thing which is storage.go.
- * Maybe change it later.
- *
- * Payload of pg_notify is 8000. It will crash the app when it is beyond that when using "PERFORM pg_notify('submissions',row_to_json(NEW)::text);"
- * @see https://stackoverflow.com/questions/41057130/postgresql-error-payload-string-too-long
- */
-func (st *Storage) CheckError(err error) {
-	if err != nil {
-		log.Println("Query:: ", err.Error())
-		panic(err)
+// session returns a gorm handle that enables SQL query logging only in the
+// development environment, so production logs are not flooded with queries.
+func (st *Storage) session() *gorm.DB {
+	if st.Env == "devel" {
+		return st.GormDB.Debug()
 	}
+	return st.GormDB
 }
 
 /**
@@ -454,9 +448,8 @@ func (st *Storage) GetLastSeenID(ctx context.Context) (int, error) {
 func (st *Storage) initPaging(p *Pagination, options Options) {
 	if p.Cursor == 0 {
 		var notesAndProfiles []NotesAndProfiles
-		fmt.Println("Empty cursor")
 		if !options.BookMark {
-			st.GormDB.Debug().Model(&NotesAndProfiles{}).
+			st.session().Model(&NotesAndProfiles{}).
 				Where(`id < (SELECT MAX(id) FROM "notes_and_profiles" WHERE followed = @follow and bookmarked = @bookmark)`, sql.Named("follow", options.Follow), sql.Named("bookmark", options.BookMark)).
 				Where("followed = @follow and bookmarked = @bookmark", sql.Named("follow", options.Follow), sql.Named("bookmark", options.BookMark)).
 				Order("id DESC").
@@ -532,7 +525,7 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 	st.initPaging(p, options)
 	slog.Info("State is: ", "state", state)
 
-	tx := st.GormDB.Debug().Where("followed = ? and bookmarked = ?", options.Follow, options.BookMark)
+	tx := st.session().Where("followed = ? and bookmarked = ?", options.Follow, options.BookMark)
 
 	if state == stateName[StateInit] || state == stateName[StateRefresh] {
 		tx = tx.Where("id > ?", p.Cursor).
@@ -630,7 +623,7 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	}
 	slog.Info("State is: ", "state", state)
 
-	tx := st.GormDB.Debug().Model(&Note{}).
+	tx := st.session().Model(&Note{}).
 		Joins("JOIN notifications ON (notifications.note_id = notes.id)")
 
 	// Apply the cursor to the driving query so pagination actually advances.
@@ -672,7 +665,7 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 		root_tags = append(root_tags, tree.RootTag)
 	}
 	var rows []NotesAndProfiles
-	err := st.GormDB.Debug().Model(&NotesAndProfiles{}).Where("event_id IN (?)", root_tags).Find(&rows).Error
+	err := st.session().Model(&NotesAndProfiles{}).Where("event_id IN (?)", root_tags).Find(&rows).Error
 	if err != nil {
 		slog.Error(logger.GetCallerInfo(1), "error", err.Error())
 		return nil, nil
@@ -992,7 +985,7 @@ func (st *Storage) GetInbox(ctx context.Context, context string, p *Pagination, 
 
 	var rows []NotesAndProfiles
 	//rows, err := tx.Query(ctx, qry, pubkey)
-	err := st.GormDB.Debug().WithContext(ctx).Raw(qry, pubkey).Limit(100).Find(&rows).Error
+	err := st.session().WithContext(ctx).Raw(qry, pubkey).Limit(100).Find(&rows).Error
 	if err != nil {
 		slog.Error(logger.GetCallerInfo(1), "error", err)
 	}
@@ -1285,7 +1278,7 @@ func (st *Storage) GetLastTimeStamp(ctx context.Context) int64 {
 
 func (st *Storage) FindProfile(ctx context.Context, pubkey string) (Profile, error) {
 	var profile Profile
-	err := st.GormDB.Debug().Model(&Profile{}).Where("pubkey = ?", pubkey).Find(&profile).Error
+	err := st.session().Model(&Profile{}).Where("pubkey = ?", pubkey).Find(&profile).Error
 	if err != nil {
 		slog.Error(fmt.Sprintf("FindProfile() -> Query error for pubkey %s", pubkey), "error", err.Error())
 	}
