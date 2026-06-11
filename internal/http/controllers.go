@@ -443,7 +443,7 @@ func (c *Controller) Follow() http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "*") // for CORS
 		w.WriteHeader(http.StatusOK)
 
-		if user.Pubkey[0:4] == "npub" {
+		if strings.HasPrefix(user.Pubkey, "npub") {
 			prefix, value, err := nip19.Decode(user.Pubkey)
 			if err != nil {
 				log.Println(prefix, value, err)
@@ -1208,9 +1208,15 @@ func (c *Controller) SearchProfiles() http.HandlerFunc {
 
 		//var err error
 		searchStr := r.URL.Query().Get("q")
+		if searchStr == "" {
+			response.Status = "error"
+			response.Message = "missing search query"
+			render.JSON(w, r, response)
+			return
+		}
 		var pubkey string
 		pubkey = searchStr
-		if searchStr[0:4] == "npub" {
+		if strings.HasPrefix(searchStr, "npub") {
 			prefix, val, err := nip19.Decode(searchStr)
 			if err != nil {
 				response.Status = "error"
