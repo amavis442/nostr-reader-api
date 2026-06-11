@@ -10,17 +10,24 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-func routes(c *Controller, port string) *chi.Mux {
+func routes(c *Controller, port string, cfg *ServerConfig) *chi.Mux {
 	router := chi.NewRouter()
+
+	// Only loopback and explicitly allowed client IPs may reach the API.
+	router.Use(ipAllowlist(cfg.AllowedIPs))
 
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(render.SetContentType(render.ContentTypeJSON))
 
+	// Restrict CORS to configured origins; default to localhost when unset.
+	allowedOrigins := cfg.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"http://localhost:*", "http://127.0.0.1:*"}
+	}
+
 	router.Use(cors.Handler(cors.Options{
-		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		AllowedOrigins: []string{"https://*", "http://*"},
-		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "Accept", "Origin", "Cache-Control", "X-Requested-With"},
 		ExposedHeaders:   []string{"Link"},
