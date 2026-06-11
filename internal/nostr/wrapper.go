@@ -68,7 +68,7 @@ func (wrapper *Wrapper) Do(ctx context.Context, r db.Relay, f func(context.Conte
 
 			relay, err := nostr.RelayConnect(ctx, relayUrl)
 			if err != nil {
-				slog.Info("can't connect to relay: " + relay.URL)
+				slog.Info("can't connect to relay: " + relayUrl)
 				return
 			}
 
