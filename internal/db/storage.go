@@ -866,20 +866,16 @@ func (st *Storage) getChildren(ctx context.Context, eventMap map[string]Event) e
 		//Where("seens.event_id IS NULL").
 		Where("notes.garbage = false")
 
-	var eventIds string
-	var numIds int = 0
+	eventIds := make([]string, 0, len(eventMap))
 	for k := range eventMap {
-		eventIds = eventIds + `'` + k + `',`
-		numIds++
+		eventIds = append(eventIds, k)
 	}
 
-	if numIds < 1 {
+	if len(eventIds) < 1 {
 		return nil
 	}
 
-	eventIds = eventIds[:len(eventIds)-1]
-
-	tx.Where("trees.root_event_id IN (" + eventIds + ")")
+	tx = tx.Where("trees.root_event_id IN ?", eventIds)
 
 	treeRows, err := tx.Rows()
 	if err != nil {
@@ -1089,12 +1085,12 @@ func (st *Storage) FindEvent(ctx context.Context, id string) (Event, error) {
 	LEFT JOIN seens s on (s.event_id = e.event_id)
 	LEFT JOIN follows f ON (f.pubkey = e.pubkey)
 	LEFT JOIN bookmarks b ON (b.note_id = e.id)
-	WHERE root_event_id IN (` + `'` + event.Event.ID + `')` +
-		` AND e.event_id = t.event_id
+	WHERE root_event_id IN ($1)
+	AND e.event_id = t.event_id
 	AND e.kind = 1 AND b.pubkey IS NULL AND s.event_id IS NULL AND e.garbage = false;`
 
 	var treeRows *sql.Rows
-	treeRows, err = st.GormDB.WithContext(ctx).Raw(treeQry).Rows()
+	treeRows, err = st.GormDB.WithContext(ctx).Raw(treeQry, event.Event.ID).Rows()
 	if err != nil {
 		log.Println("FindEvent() -> Query:: ", err)
 	}
@@ -1178,14 +1174,11 @@ func (st *Storage) FindRawEvent(ctx context.Context, id string) (*Event, error) 
 }
 
 func (st *Storage) CheckProfiles(ctx context.Context, pubkeys []string, epochtime int64) ([]string, error) {
-	qry := `SELECT pubkey FROM profiles WHERE EXTRACT(EPOCH FROM created_at) > $1 AND pubkey in (`
-
-	for _, pubkey := range pubkeys {
-		qry = qry + `'` + pubkey + `',`
-	}
-	qry = qry[:len(qry)-1] + `)`
-
-	rows, err := st.GormDB.WithContext(ctx).Raw(qry, epochtime).Rows()
+	var found []string
+	err := st.GormDB.WithContext(ctx).
+		Model(&Profile{}).
+		Where("EXTRACT(EPOCH FROM created_at) > ? AND pubkey IN ?", epochtime, pubkeys).
+		Pluck("pubkey", &found).Error
 	if err != nil {
 		log.Println("CheckProfile() -> Query:: ", err)
 		return []string{}, err
@@ -1195,9 +1188,7 @@ func (st *Storage) CheckProfiles(ctx context.Context, pubkeys []string, epochtim
 	for _, pk := range pubkeys { // Put all pubkeys in a map
 		pubkeysMap[pk] = pk
 	}
-	for rows.Next() {
-		var pubkey string
-		_ = rows.Scan(&pubkey)
+	for _, pubkey := range found {
 		delete(pubkeysMap, pubkey) // Ignore all pubkeys from the result
 	}
 
