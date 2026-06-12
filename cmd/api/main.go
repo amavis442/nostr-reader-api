@@ -23,7 +23,7 @@ import (
 
 const name = "nostr-reader"
 
-const version = "0.0.10"
+const version = "0.1.0"
 
 func getFireSignalsChannel() chan os.Signal {
 
