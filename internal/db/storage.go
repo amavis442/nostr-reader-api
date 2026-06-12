@@ -304,7 +304,13 @@ func (st *Storage) SaveNote(ctx context.Context, event *Event) (Note, []string, 
 		return Note{}, nil, err
 	}
 
+	// Root notes deduplicate on author + content. Replies additionally fold in
+	// their root and reply ids, so the same text copied into another branch is
+	// kept instead of being dropped as a false duplicate of the first reply.
 	fingerprint := contentFingerprint(ev.PubKey, ev.Content)
+	if !isRoot {
+		fingerprint = replyFingerprint(ev.PubKey, ev.Content, tree.RootTag, tree.ReplyTag)
+	}
 
 	newUUID, _ := uuid.NewV7()
 	note := Note{}
