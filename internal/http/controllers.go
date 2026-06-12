@@ -835,7 +835,24 @@ func (c *Controller) GetNewNotesCount() http.HandlerFunc {
 		response.Message = "new notes count"
 		response.Context = p.Context
 
-		count, err := c.Db.GetNewNotesCount(ctx, p.Cursor, options)
+		// Count notes newer than the last-seen id, not newer than the cursor.
+		// The cursor is the lower bound of the current page, so every note on
+		// screen already has id > cursor — counting against it overstates the
+		// "new notes" badge by (part of) the current page. The last-seen id
+		// (MAX(note_id) from the seen table) only excludes notes already shown.
+		lastSeenID, err := c.Db.GetLastSeenID(ctx)
+		if err != nil {
+			response.Status = "error"
+			response.Message = err.Error()
+			response.Data = "0"
+
+			if err = json.NewEncoder(w).Encode(&response); err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		count, err := c.Db.GetNewNotesCount(ctx, uint64(lastSeenID), options)
 
 		response.Data = fmt.Sprintf("%d", count)
 
