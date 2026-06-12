@@ -39,3 +39,61 @@ func TestContentFingerprintProperties(t *testing.T) {
 		t.Error("different pubkey should yield a different fingerprint")
 	}
 }
+
+func TestReplyFingerprintDiffersByRoot(t *testing.T) {
+	// The same author copying identical text into a reply under a different
+	// root must not collide, otherwise the copy is dropped as a false
+	// duplicate and never shows up in the correct thread.
+	a := replyFingerprint("npub1", "same text", "root1", "")
+	b := replyFingerprint("npub1", "same text", "root2", "")
+	if a == b {
+		t.Error("same text under different roots must not share a fingerprint")
+	}
+}
+
+func TestReplyFingerprintDiffersByReplyParent(t *testing.T) {
+	// Same root, different immediate parent must also be distinct so a reply
+	// re-aimed at another post in the same thread is kept.
+	a := replyFingerprint("npub1", "same text", "root", "parent1")
+	b := replyFingerprint("npub1", "same text", "root", "parent2")
+	if a == b {
+		t.Error("same text under different parents must not share a fingerprint")
+	}
+}
+
+func TestReplyFingerprintGenuineDuplicateCollides(t *testing.T) {
+	// A genuine repost — identical text in the exact same branch — must still
+	// collide so the deduplication keeps working.
+	a := replyFingerprint("npub1", "same text", "root", "parent")
+	b := replyFingerprint("npub1", "same text", "root", "parent")
+	if a != b {
+		t.Error("identical reply in the same branch must share a fingerprint so it dedups")
+	}
+}
+
+func TestReplyFingerprintProperties(t *testing.T) {
+	fp := replyFingerprint("npub1", "hello", "root", "parent")
+
+	if len(fp) != 64 {
+		t.Errorf("fingerprint length = %d, want 64 hex chars", len(fp))
+	}
+	// Different author yields a different fingerprint.
+	if fp == replyFingerprint("npub2", "hello", "root", "parent") {
+		t.Error("different pubkey should yield a different fingerprint")
+	}
+	// Different content yields a different fingerprint.
+	if fp == replyFingerprint("npub1", "hallo", "root", "parent") {
+		t.Error("different content should yield a different fingerprint")
+	}
+}
+
+func TestReplyFingerprintFieldBoundaryUnambiguous(t *testing.T) {
+	// Moving text across the content/thread-id boundary must change the
+	// fingerprint: the separators keep the fixed-length hex ids and the
+	// free-form content from bleeding into one another.
+	a := replyFingerprint("npub1", "abc", "def", "")
+	b := replyFingerprint("npub1", "abcdef", "", "")
+	if a == b {
+		t.Error("content and thread ids must not be confusable")
+	}
+}
