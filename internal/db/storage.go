@@ -542,10 +542,10 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 	if p.Cursor > 0 {
 		state = stateName[StateRefresh]
 	}
-	if p.NextCursor != 0 {
+	if p.Direction == "next" {
 		state = stateName[StateNext]
 	}
-	if p.PreviousCursor != 0 {
+	if p.Direction == "prev" {
 		state = stateName[StatePrev]
 	}
 	st.initPaging(p, options)
@@ -559,11 +559,11 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 	}
 
 	if state == stateName[StateNext] {
-		tx = tx.Where("id > ?", p.NextCursor).
+		tx = tx.Where("id > ?", p.Cursor).
 			Order("id ASC")
 	}
 	if state == stateName[StatePrev] {
-		tx = tx.Where("id < ?", p.PreviousCursor).
+		tx = tx.Where("id < ?", p.Cursor).
 			Order("id DESC")
 	}
 
@@ -575,30 +575,27 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 		return &[]Event{}, nil
 	}
 
-	p.NextCursor = 0
-	p.PreviousCursor = 0
-
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i].ID > rows[j].ID
 	})
 
 	if (state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		next_cursor := rows[0]
-		p.NextCursor = next_cursor.ID
+		cursor := rows[0]
+		p.Cursor = cursor.ID
 	}
 
 	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		next_cursor := rows[0]
-		p.NextCursor = next_cursor.ID
+		cursor := rows[0]
+		p.Cursor = cursor.ID
 	}
 
 	if state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh] {
-		prev_cursor := rows[len(rows)-1]
-		p.PreviousCursor = prev_cursor.ID
+		cursor := rows[len(rows)-1]
+		p.Cursor = cursor.ID
 	}
 	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		prev_cursor := rows[len(rows)-1]
-		p.PreviousCursor = prev_cursor.ID
+		cursor := rows[len(rows)-1]
+		p.Cursor = cursor.ID
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
@@ -641,10 +638,10 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	if p.Cursor > 0 {
 		state = stateName[StateRefresh]
 	}
-	if p.NextCursor != 0 {
+	if p.Direction == "next" {
 		state = stateName[StateNext]
 	}
-	if p.PreviousCursor != 0 {
+	if p.Direction == "prev" {
 		state = stateName[StatePrev]
 	}
 	slog.Info("State is: ", "state", state)
@@ -655,9 +652,9 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	// Apply the cursor to the driving query so pagination actually advances.
 	switch state {
 	case stateName[StateNext]:
-		tx = tx.Where("notes.id < ?", p.NextCursor)
+		tx = tx.Where("notes.id < ?", p.Cursor)
 	case stateName[StatePrev]:
-		tx = tx.Where("notes.id > ?", p.PreviousCursor)
+		tx = tx.Where("notes.id > ?", p.Cursor)
 	case stateName[StateRefresh]:
 		tx = tx.Where("notes.id > ?", p.Cursor)
 	}
@@ -672,13 +669,12 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	// Cursors track the notification notes themselves (ordered by id DESC):
 	// the last (oldest) id pages forward, the first (newest) id pages back.
 	perPage := int(p.GetPerPage())
-	p.NextCursor = 0
-	p.PreviousCursor = 0
+
 	if len(notes) >= perPage {
-		p.NextCursor = uint64(notes[len(notes)-1].ID)
+		p.Cursor = uint64(notes[len(notes)-1].ID)
 	}
 	if state != stateName[StateInit] {
-		p.PreviousCursor = uint64(notes[0].ID)
+		p.Cursor = uint64(notes[0].ID)
 	}
 
 	var root_tags []string
