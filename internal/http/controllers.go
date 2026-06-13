@@ -2,6 +2,7 @@ package http
 
 import (
 	"amavis442/nostr-reader/internal/db"
+	domain "amavis442/nostr-reader/internal/domain"
 	"amavis442/nostr-reader/internal/logger"
 	wrapper "amavis442/nostr-reader/internal/nostr"
 	"context"
@@ -21,9 +22,10 @@ import (
 )
 
 type Controller struct {
-	Pubkey string
-	Db     *db.Storage
-	Nostr  *wrapper.Wrapper
+	Pubkey     string
+	Db         *db.Storage
+	Nostr      *wrapper.Wrapper
+	MaxNoteAge *domain.MaxNoteAge
 }
 
 /**
@@ -301,7 +303,7 @@ func (c *Controller) StartSync() http.HandlerFunc {
 		evs := c.Nostr.GetEvents(ctx, filter)
 		var pubkeys = make([]string, 0)
 		var err error
-		pubkeys, _, err = c.Db.SaveEvents(ctx, evs)
+		pubkeys, _, err = c.Db.SaveEvents(ctx, evs, c.MaxNoteAge.Days)
 		if err != nil {
 			response.Status = "error"
 			response.Message = err.Error()
@@ -354,7 +356,7 @@ func (c *Controller) SyncNote() http.HandlerFunc {
 
 		evs := c.Nostr.GetEvents(ctx, filter)
 
-		c.Db.SaveEvents(ctx, evs)
+		c.Db.SaveEvents(ctx, evs, c.MaxNoteAge.Days)
 		ev, _ := c.Db.FindEvent(ctx, j.ID)
 
 		log.Println("Need to get it", j.ID, filter)
@@ -936,7 +938,7 @@ func (c *Controller) SearchEvent() http.HandlerFunc {
 
 			evs := c.Nostr.GetEvents(ctx, filter)
 
-			c.Db.SaveEvents(ctx, evs)
+			c.Db.SaveEvents(ctx, evs, c.MaxNoteAge.Days)
 
 			log.Println("Need to get it", j.ID, filter)
 		}

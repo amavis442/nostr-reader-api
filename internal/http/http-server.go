@@ -2,6 +2,7 @@ package http
 
 import (
 	"amavis442/nostr-reader/internal/db"
+	domain "amavis442/nostr-reader/internal/domain"
 	wrapper "amavis442/nostr-reader/internal/nostr"
 	"fmt"
 	"log/slog"
@@ -23,11 +24,12 @@ type ServerConfig struct {
 }
 
 type HttpServer struct {
-	DevMode  bool
-	Server   *ServerConfig
-	Database *db.Storage
-	Nostr    *wrapper.Wrapper
-	Router   *chi.Mux
+	DevMode    bool
+	Server     *ServerConfig
+	Database   *db.Storage
+	Nostr      *wrapper.Wrapper
+	Router     *chi.Mux
+	MaxNoteAge *domain.MaxNoteAge
 }
 
 func (s *HttpServer) Routes(c *Controller, port string) {
@@ -53,6 +55,7 @@ func (s *HttpServer) Start() {
 	c.Pubkey = s.Nostr.Cfg.PubKey
 	c.Db = s.Database
 	c.Nostr = s.Nostr
+	c.MaxNoteAge = s.MaxNoteAge
 
 	var port string = "8080"
 	if s.Server.Port > 0 {

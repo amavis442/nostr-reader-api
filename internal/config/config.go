@@ -2,6 +2,7 @@ package config
 
 import (
 	"amavis442/nostr-reader/internal/db"
+	domain "amavis442/nostr-reader/internal/domain"
 	"amavis442/nostr-reader/internal/http"
 	wrapper "amavis442/nostr-reader/internal/nostr"
 	"encoding/json"
@@ -21,11 +22,12 @@ import (
  *
  */
 type Config struct {
-	Database *db.DbConfig
-	Server   *http.ServerConfig
-	Env      string
-	Interval uint
-	Nostr    *wrapper.WrapperConfig
+	Database   *db.DbConfig
+	Server     *http.ServerConfig
+	Env        string
+	Interval   uint
+	Nostr      *wrapper.WrapperConfig
+	MaxNoteAge *domain.MaxNoteAge `json:"max_note_age"`
 }
 
 func configDir() (string, error) {

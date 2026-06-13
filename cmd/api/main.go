@@ -4,6 +4,7 @@ package main
 import (
 	"amavis442/nostr-reader/internal/config"
 	"amavis442/nostr-reader/internal/db"
+	domain "amavis442/nostr-reader/internal/domain"
 	"amavis442/nostr-reader/internal/http"
 	wrapper "amavis442/nostr-reader/internal/nostr"
 	"context"
@@ -23,7 +24,7 @@ import (
 
 const name = "nostr-reader"
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 func getFireSignalsChannel() chan os.Signal {
 
@@ -121,6 +122,10 @@ func main() {
 		cfg.Interval = 1
 	}
 
+	if cfg.MaxNoteAge == nil {
+		cfg.MaxNoteAge = &domain.MaxNoteAge{Days: 7}
+	}
+
 	slog.Info(fmt.Sprintf("Your public key is: %s", cfg.Nostr.PubKey))
 	slog.Info(fmt.Sprintf("Your npub is: %s", cfg.Nostr.Npub))
 
@@ -164,7 +169,7 @@ func main() {
 			case tm := <-ticker.C:
 				slog.Info("The Current time is", "time", tm)
 				wg.Add(1)
-				go intervalTask(&wg, ctx, &st, &nostrWrapper, 120, *disableSyncPtr)
+				go intervalTask(&wg, ctx, &st, &nostrWrapper, cfg.MaxNoteAge.Days, 120, *disableSyncPtr)
 			}
 		}
 	}()
@@ -174,13 +179,14 @@ func main() {
 	httpServer.Server = cfg.Server
 	httpServer.Database = &st
 	httpServer.Nostr = &nostrWrapper
+	httpServer.MaxNoteAge = cfg.MaxNoteAge
 
 	httpServer.Start()
 
 	wg.Wait()
 }
 
-func intervalTask(wg *sync.WaitGroup, ctx context.Context, st *db.Storage, nostrWrapper *wrapper.Wrapper, timeOut int, syncDisabled bool) {
+func intervalTask(wg *sync.WaitGroup, ctx context.Context, st *db.Storage, nostrWrapper *wrapper.Wrapper, maxAgeDays int, timeOut int, syncDisabled bool) {
 	if syncDisabled {
 		return
 	}
@@ -198,7 +204,7 @@ func intervalTask(wg *sync.WaitGroup, ctx context.Context, st *db.Storage, nostr
 	filter := nostrWrapper.GetEventData(createdAt, false)
 	evs := nostrWrapper.GetEvents(ctx, filter)
 
-	_, missingEventIds, err := st.SaveEvents(ctx, evs)
+	_, missingEventIds, err := st.SaveEvents(ctx, evs, maxAgeDays) // notes older than maxAgeDays are ignored
 	if err != nil {
 		slog.Error(err.Error())
 	}
@@ -211,7 +217,7 @@ func intervalTask(wg *sync.WaitGroup, ctx context.Context, st *db.Storage, nostr
 		}
 		evs := nostrWrapper.GetEvents(ctx, filter)
 
-		_, _, err := st.SaveEvents(ctx, evs)
+		_, _, err := st.SaveEvents(ctx, evs, maxAgeDays)
 		if err != nil {
 			log.Println(err)
 		}

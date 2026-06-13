@@ -28,12 +28,12 @@ import (
 )
 
 type DbConfig struct {
-	User      string
-	Password  string
-	Dbname    string
-	Port      int
-	Host      string
-	Retention int
+	User      string `json:"user"`
+	Password  string `json:"password"`
+	Dbname    string `json:"dbname"`
+	Port      int    `json:"port"`
+	Host      string `json:"host"`
+	Retention int    `json:"retention"`
 }
 
 /**
@@ -201,12 +201,14 @@ func (st *Storage) SaveProfiles(ctx context.Context, evs []*Event) error {
  * Save the events, mostly notes. Ignore duplicate events based on unique event id
  * This will normalize the content tag of the events with all the unwanted markup (Maybe put this in a helper function)
  */
-func (st *Storage) SaveEvents(ctx context.Context, evs []*Event) (pubkeys []string, missingEventIds []string, err error) {
+func (st *Storage) SaveEvents(ctx context.Context, evs []*Event, maxAgeDays int) (pubkeys []string, missingEventIds []string, err error) {
 	pubkeys = make([]string, 0)
 	missingEventIds = make([]string, 0)
+	past := time.Now().AddDate(0, 0, -maxAgeDays)
 
 	for _, ev := range evs {
-		if ev.Event.CreatedAt.Time().Unix() > time.Now().Unix() { // Ignore events with timestamp in the future.
+
+		if ev.Event.CreatedAt.Time().Unix() > time.Now().Unix() || ev.Event.CreatedAt.Time().Unix() < past.Unix() { // Ignore events with timestamp in the future or to far in the past.
 			continue
 		}
 
