@@ -471,23 +471,6 @@ func (st *Storage) GetLastSeenID(ctx context.Context) (int, error) {
 	return maxId, nil
 }
 
-func (st *Storage) initPaging(p *Pagination, options Options) {
-	if p.Cursor == 0 {
-		var notesAndProfiles []NotesAndProfiles
-		if !options.BookMark {
-			st.session().Model(&NotesAndProfiles{}).
-				Where(`id < (SELECT MAX(id) FROM "notes_and_profiles" WHERE followed = @follow and bookmarked = @bookmark)`, sql.Named("follow", options.Follow), sql.Named("bookmark", options.BookMark)).
-				Where("followed = @follow and bookmarked = @bookmark", sql.Named("follow", options.Follow), sql.Named("bookmark", options.BookMark)).
-				Order("id DESC").
-				Limit(30).
-				Find(&notesAndProfiles)
-
-			if len(notesAndProfiles) > 0 {
-				p.Cursor = notesAndProfiles[len(notesAndProfiles)-1].ID
-			}
-		}
-	}
-}
 
 type NotesAndProfiles struct {
 	ID             uint64          `gorm:"type:bigint"`
@@ -548,26 +531,20 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 	if p.Direction == "prev" {
 		state = stateName[StatePrev]
 	}
-	st.initPaging(p, options)
 	slog.Info("State is: ", "state", state)
 
 	tx := st.session().Where("followed = ? and bookmarked = ?", options.Follow, options.BookMark)
 
-	if state == stateName[StateInit] || state == stateName[StateRefresh] {
-		tx = tx.Where("id > ?", p.Cursor).
-			Order("id ASC")
+	switch state {
+	case stateName[StateInit], stateName[StateRefresh]:
+		tx = tx.Order("event_created_at DESC")
+	case stateName[StateNext]:
+		tx = tx.Where("event_created_at > ?", p.Cursor).Order("event_created_at ASC")
+	case stateName[StatePrev]:
+		tx = tx.Where("event_created_at < ?", p.Cursor).Order("event_created_at DESC")
 	}
 
-	if state == stateName[StateNext] {
-		tx = tx.Where("id > ?", p.Cursor).
-			Order("id ASC")
-	}
-	if state == stateName[StatePrev] {
-		tx = tx.Where("id < ?", p.Cursor).
-			Order("id DESC")
-	}
-
-	tx = tx.Limit(int(p.GetPerPage())) // Last one is not shown and only used for the next cursor
+	tx = tx.Limit(int(p.GetPerPage()))
 
 	var rows []NotesAndProfiles
 	tx.Find(&rows)
@@ -575,24 +552,28 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 		return &[]Event{}, nil
 	}
 
+	// Sort DESC by event timestamp for consistent display regardless of query order.
 	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].ID > rows[j].ID
+		return rows[i].EventCreatedAt > rows[j].EventCreatedAt
 	})
 
 	if len(rows) > 0 {
-		maxID := rows[0].ID
-		minID := rows[len(rows)-1].ID
-		p.Cursor = minID
+		maxTS := uint64(rows[0].EventCreatedAt)
+		minTS := uint64(rows[len(rows)-1].EventCreatedAt)
 
-		// A partial page means no more results exist in the direction we were paginating —
-		// no query needed for that side. The opposite direction still requires a check.
+		// Return the oldest timestamp on the page as cursor — the frontend uses it
+		// for "prev" navigation (event_created_at < minTS).
+		// For "next", the frontend extracts the newest timestamp from the event list.
+		p.Cursor = minTS
+
+		// A partial page means no more results in the direction we were paginating.
 		partialPage := len(rows) < int(p.GetPerPage())
 
 		if !partialPage || state == stateName[StatePrev] {
 			var count int64
 			st.session().Model(&NotesAndProfiles{}).
 				Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
-				Where("id > ?", maxID).
+				Where("event_created_at > ?", maxTS).
 				Limit(1).Count(&count)
 			p.HasNext = count > 0
 		}
@@ -601,15 +582,11 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 			var count int64
 			st.session().Model(&NotesAndProfiles{}).
 				Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
-				Where("id < ?", minID).
+				Where("event_created_at < ?", minTS).
 				Limit(1).Count(&count)
 			p.HasPrev = count > 0
 		}
 	}
-
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].EventCreatedAt.Time().Unix() > rows[j].EventCreatedAt.Time().Unix()
-	})
 
 	eventMap, keys, seenMap, err := st.procesEventRows(&rows)
 	if err != nil {
@@ -658,16 +635,15 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	tx := st.session().Model(&Note{}).
 		Joins("JOIN notifications ON (notifications.note_id = notes.id)")
 
-	// Apply the cursor to the driving query so pagination actually advances.
 	switch state {
+	case stateName[StateInit], stateName[StateRefresh]:
+		tx = tx.Order("notes.event_created_at DESC")
 	case stateName[StateNext]:
-		tx = tx.Where("notes.id < ?", p.Cursor)
+		tx = tx.Where("notes.event_created_at < ?", p.Cursor).Order("notes.event_created_at DESC")
 	case stateName[StatePrev]:
-		tx = tx.Where("notes.id > ?", p.Cursor)
-	case stateName[StateRefresh]:
-		tx = tx.Where("notes.id > ?", p.Cursor)
+		tx = tx.Where("notes.event_created_at > ?", p.Cursor).Order("notes.event_created_at ASC")
 	}
-	tx = tx.Order("notes.id DESC").Limit(int(p.GetPerPage()))
+	tx = tx.Limit(int(p.GetPerPage()))
 
 	var notes []Note
 	tx.Find(&notes)
@@ -675,31 +651,26 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 		return &[]Event{}, nil
 	}
 
-	// Cursors track the notification notes themselves (ordered by id DESC):
-	// the last (oldest) id pages forward, the first (newest) id pages back.
+	// Sort DESC by event timestamp for consistent display regardless of query order.
+	sort.Slice(notes, func(i, j int) bool {
+		return notes[i].EventCreatedAt > notes[j].EventCreatedAt
+	})
+
 	perPage := int(p.GetPerPage())
 
-	if len(notes) >= perPage {
-		p.Cursor = uint64(notes[len(notes)-1].ID)
-	}
-	if state != stateName[StateInit] {
-		p.Cursor = uint64(notes[0].ID)
-	}
-
 	if len(notes) > 0 {
-		maxID := uint64(notes[0].ID)
-		minID := uint64(notes[len(notes)-1].ID)
+		maxTS := uint64(notes[0].EventCreatedAt)
+		minTS := uint64(notes[len(notes)-1].EventCreatedAt)
+		p.Cursor = minTS
 
-		// GetNotifications queries in DESC order: "next" goes to lower IDs (older),
-		// "prev" goes to higher IDs (newer). A partial page means no more exist
-		// in the direction we were paginating.
 		partialPage := len(notes) < perPage
 
+		// GetNotifications displays newest first; "next" goes to older (lower timestamps).
 		if !partialPage || state == stateName[StatePrev] {
 			var count int64
 			st.session().Model(&Note{}).
 				Joins("JOIN notifications ON (notifications.note_id = notes.id)").
-				Where("notes.id < ?", minID).
+				Where("notes.event_created_at < ?", minTS).
 				Limit(1).Count(&count)
 			p.HasNext = count > 0
 		}
@@ -708,7 +679,7 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 			var count int64
 			st.session().Model(&Note{}).
 				Joins("JOIN notifications ON (notifications.note_id = notes.id)").
-				Where("notes.id > ?", maxID).
+				Where("notes.event_created_at > ?", maxTS).
 				Limit(1).Count(&count)
 			p.HasPrev = count > 0
 		}
