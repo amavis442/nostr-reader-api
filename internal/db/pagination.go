@@ -6,6 +6,8 @@ type Pagination struct {
 	Direction string `json:"direction"`
 	PerPage   uint   `json:"per_page,omitempty" query:"per_page"`
 	Since     uint   `json:"since"`
+	HasNext   bool   `json:"has_next"`
+	HasPrev   bool   `json:"has_prev"`
 }
 
 func (p *Pagination) SetCursor(cursor uint64) {

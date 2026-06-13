@@ -579,23 +579,32 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 		return rows[i].ID > rows[j].ID
 	})
 
-	if (state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		cursor := rows[0]
-		p.Cursor = cursor.ID
-	}
+	if len(rows) > 0 {
+		maxID := rows[0].ID
+		minID := rows[len(rows)-1].ID
+		p.Cursor = minID
 
-	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		cursor := rows[0]
-		p.Cursor = cursor.ID
-	}
+		// A partial page means no more results exist in the direction we were paginating —
+		// no query needed for that side. The opposite direction still requires a check.
+		partialPage := len(rows) < int(p.GetPerPage())
 
-	if state == stateName[StateInit] || state == stateName[StateNext] || state == stateName[StateRefresh] {
-		cursor := rows[len(rows)-1]
-		p.Cursor = cursor.ID
-	}
-	if (state == stateName[StatePrev] || state == stateName[StateRefresh]) && !(len(rows) < int(p.PerPage)) {
-		cursor := rows[len(rows)-1]
-		p.Cursor = cursor.ID
+		if !partialPage || state == stateName[StatePrev] {
+			var count int64
+			st.session().Model(&NotesAndProfiles{}).
+				Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
+				Where("id > ?", maxID).
+				Limit(1).Count(&count)
+			p.HasNext = count > 0
+		}
+
+		if !partialPage || state != stateName[StatePrev] {
+			var count int64
+			st.session().Model(&NotesAndProfiles{}).
+				Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
+				Where("id < ?", minID).
+				Limit(1).Count(&count)
+			p.HasPrev = count > 0
+		}
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
@@ -675,6 +684,34 @@ func (st *Storage) GetNotifications(ctx context.Context, p *Pagination) (*[]Even
 	}
 	if state != stateName[StateInit] {
 		p.Cursor = uint64(notes[0].ID)
+	}
+
+	if len(notes) > 0 {
+		maxID := uint64(notes[0].ID)
+		minID := uint64(notes[len(notes)-1].ID)
+
+		// GetNotifications queries in DESC order: "next" goes to lower IDs (older),
+		// "prev" goes to higher IDs (newer). A partial page means no more exist
+		// in the direction we were paginating.
+		partialPage := len(notes) < perPage
+
+		if !partialPage || state == stateName[StatePrev] {
+			var count int64
+			st.session().Model(&Note{}).
+				Joins("JOIN notifications ON (notifications.note_id = notes.id)").
+				Where("notes.id < ?", minID).
+				Limit(1).Count(&count)
+			p.HasNext = count > 0
+		}
+
+		if !partialPage || state != stateName[StatePrev] {
+			var count int64
+			st.session().Model(&Note{}).
+				Joins("JOIN notifications ON (notifications.note_id = notes.id)").
+				Where("notes.id > ?", maxID).
+				Limit(1).Count(&count)
+			p.HasPrev = count > 0
+		}
 	}
 
 	var root_tags []string
