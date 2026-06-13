@@ -409,36 +409,33 @@ paths:
       - application/json
       description: get Notes
       parameters:
-      - description: Cursor
+      - description: Unix timestamp cursor (event_created_at); 0 loads the latest
+          page
         in: query
         name: cursor
-        required: true
         type: integer
-      - description: Start id
+      - description: Pagination direction
+        enum:
+        - next
+        - prev
         in: query
-        name: start_id
-        required: true
-        type: integer
-      - description: End id
-        in: query
-        name: end_id
-        required: true
-        type: integer
+        name: direction
+        type: string
       - default: 10
         description: Results per page
         in: query
         name: per_page
         type: integer
       - default: false
-        description: Renew page and ignore start_id
+        description: Force refresh ignoring cache
         in: query
         name: renew
         type: boolean
-      - description: Since
+      - description: Since timestamp
         in: query
         name: since
         type: integer
-      - description: string enum
+      - description: Feed context
         enum:
         - follow
         - bookmark

@@ -510,24 +510,19 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Cursor",
+                        "description": "Unix timestamp cursor (event_created_at); 0 loads the latest page",
                         "name": "cursor",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Start id",
-                        "name": "start_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "End id",
-                        "name": "end_id",
-                        "in": "query",
-                        "required": true
+                        "enum": [
+                            "next",
+                            "prev"
+                        ],
+                        "type": "string",
+                        "description": "Pagination direction",
+                        "name": "direction",
+                        "in": "query"
                     },
                     {
                         "type": "integer",
@@ -539,13 +534,13 @@ const docTemplate = `{
                     {
                         "type": "boolean",
                         "default": false,
-                        "description": "Renew page and ignore start_id",
+                        "description": "Force refresh ignoring cache",
                         "name": "renew",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Since",
+                        "description": "Since timestamp",
                         "name": "since",
                         "in": "query"
                     },
@@ -557,7 +552,7 @@ const docTemplate = `{
                             "global"
                         ],
                         "type": "string",
-                        "description": "string enum",
+                        "description": "Feed context",
                         "name": "context",
                         "in": "query"
                     }
