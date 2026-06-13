@@ -52,21 +52,6 @@ definitions:
       msg:
         type: string
     type: object
-  http.PageRequest:
-    properties:
-      context:
-        type: string
-      cursor:
-        type: integer
-      direction:
-        type: string
-      per_page:
-        type: integer
-      renew:
-        type: boolean
-      since:
-        type: integer
-    type: object
   http.Pubkey:
     properties:
       pubkey:
@@ -253,14 +238,30 @@ paths:
     get:
       consumes:
       - application/json
-      description: get Notes that you responded to
+      description: Returns notes from threads the authenticated user has participated
+        in
       parameters:
-      - description: Body for the retrieval of data
-        in: body
-        name: Body
-        required: true
-        schema:
-          $ref: '#/definitions/http.PageRequest'
+      - description: Unix timestamp cursor (event_created_at); 0 loads the latest
+          page
+        in: query
+        name: cursor
+        type: integer
+      - description: Pagination direction
+        enum:
+        - next
+        - prev
+        in: query
+        name: direction
+        type: string
+      - default: 10
+        description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Since timestamp
+        in: query
+        name: since
+        type: integer
       produces:
       - application/json
       responses:
@@ -280,7 +281,7 @@ paths:
           description: error
           schema:
             type: string
-      summary: Retrieve stored Notes
+      summary: Retrieve inbox notes
       tags:
       - notes
   /api/getlastseenid:
@@ -314,7 +315,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Set your profile data
+      description: Fetches the authenticated user's profile metadata from relays
       produces:
       - application/json
       responses:
@@ -334,45 +335,16 @@ paths:
           description: error
           schema:
             type: string
-      summary: Set your profile data
+      summary: Get your profile data
       tags:
       - profile
   /api/getnewnotescount:
     get:
       consumes:
       - application/json
-      description: Get count of new notes
+      description: Returns the number of notes newer than the last seen note id
       parameters:
-      - description: Cursor
-        in: query
-        name: cursor
-        required: true
-        type: integer
-      - description: Start id
-        in: query
-        name: start_id
-        required: true
-        type: integer
-      - description: End id
-        in: query
-        name: end_id
-        required: true
-        type: integer
-      - default: 10
-        description: Results per page
-        in: query
-        name: per_page
-        type: integer
-      - default: false
-        description: Renew page and ignore start_id
-        in: query
-        name: renew
-        type: boolean
-      - description: Since
-        in: query
-        name: since
-        type: integer
-      - description: string enum
+      - description: Feed context
         enum:
         - follow
         - bookmark
@@ -409,36 +381,33 @@ paths:
       - application/json
       description: get Notes
       parameters:
-      - description: Cursor
+      - description: Unix timestamp cursor (event_created_at); 0 loads the latest
+          page
         in: query
         name: cursor
-        required: true
         type: integer
-      - description: Start id
+      - description: Pagination direction
+        enum:
+        - next
+        - prev
         in: query
-        name: start_id
-        required: true
-        type: integer
-      - description: End id
-        in: query
-        name: end_id
-        required: true
-        type: integer
+        name: direction
+        type: string
       - default: 10
         description: Results per page
         in: query
         name: per_page
         type: integer
       - default: false
-        description: Renew page and ignore start_id
+        description: Force refresh ignoring cache
         in: query
         name: renew
         type: boolean
-      - description: Since
+      - description: Since timestamp
         in: query
         name: since
         type: integer
-      - description: string enum
+      - description: Feed context
         enum:
         - follow
         - bookmark
@@ -467,6 +436,51 @@ paths:
           schema:
             type: string
       summary: Retrieve stored Notes
+      tags:
+      - notes
+  /api/getnotifications:
+    get:
+      consumes:
+      - application/json
+      description: Returns notes that mention or reply to the authenticated user
+      parameters:
+      - description: Unix timestamp cursor (event_created_at); 0 loads the latest
+          page
+        in: query
+        name: cursor
+        type: integer
+      - description: Pagination direction
+        enum:
+        - next
+        - prev
+        in: query
+        name: direction
+        type: string
+      - default: 10
+        description: Results per page
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.Response'
+        "400":
+          description: error
+          schema:
+            type: string
+        "404":
+          description: error
+          schema:
+            type: string
+        "500":
+          description: error
+          schema:
+            type: string
+      summary: Retrieve notifications
       tags:
       - notes
   /api/getprofile:
@@ -527,7 +541,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Get count of new notes
+      description: Publishes a new note or a reply to an existing note and broadcasts
+        it to relays
       parameters:
       - description: Body for the retrieval of data
         in: body
@@ -554,7 +569,7 @@ paths:
           description: error
           schema:
             type: string
-      summary: Get count of new notes
+      summary: Publish a note or reply
       tags:
       - publish
   /api/removebookmark:

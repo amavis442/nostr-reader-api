@@ -266,7 +266,7 @@ const docTemplate = `{
         },
         "/api/getinbox": {
             "get": {
-                "description": "get Notes that you responded to",
+                "description": "Returns notes from threads the authenticated user has participated in",
                 "consumes": [
                     "application/json"
                 ],
@@ -276,16 +276,36 @@ const docTemplate = `{
                 "tags": [
                     "notes"
                 ],
-                "summary": "Retrieve stored Notes",
+                "summary": "Retrieve inbox notes",
                 "parameters": [
                     {
-                        "description": "Body for the retrieval of data",
-                        "name": "Body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/http.PageRequest"
-                        }
+                        "type": "integer",
+                        "description": "Unix timestamp cursor (event_created_at); 0 loads the latest page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "next",
+                            "prev"
+                        ],
+                        "type": "string",
+                        "description": "Pagination direction",
+                        "name": "direction",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Results per page",
+                        "name": "per_page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Since timestamp",
+                        "name": "since",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -359,7 +379,7 @@ const docTemplate = `{
         },
         "/api/getmetadata": {
             "get": {
-                "description": "Set your profile data",
+                "description": "Fetches the authenticated user's profile metadata from relays",
                 "consumes": [
                     "application/json"
                 ],
@@ -369,7 +389,7 @@ const docTemplate = `{
                 "tags": [
                     "profile"
                 ],
-                "summary": "Set your profile data",
+                "summary": "Get your profile data",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -400,7 +420,7 @@ const docTemplate = `{
         },
         "/api/getnewnotescount": {
             "get": {
-                "description": "Get count of new notes",
+                "description": "Returns the number of notes newer than the last seen note id",
                 "consumes": [
                     "application/json"
                 ],
@@ -413,47 +433,6 @@ const docTemplate = `{
                 "summary": "Get count of new notes",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Cursor",
-                        "name": "cursor",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Start id",
-                        "name": "start_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "End id",
-                        "name": "end_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Results per page",
-                        "name": "per_page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "Renew page and ignore start_id",
-                        "name": "renew",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Since",
-                        "name": "since",
-                        "in": "query"
-                    },
-                    {
                         "enum": [
                             "follow",
                             "bookmark",
@@ -461,7 +440,7 @@ const docTemplate = `{
                             "global"
                         ],
                         "type": "string",
-                        "description": "string enum",
+                        "description": "Feed context",
                         "name": "context",
                         "in": "query"
                     }
@@ -510,24 +489,19 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Cursor",
+                        "description": "Unix timestamp cursor (event_created_at); 0 loads the latest page",
                         "name": "cursor",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Start id",
-                        "name": "start_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "End id",
-                        "name": "end_id",
-                        "in": "query",
-                        "required": true
+                        "enum": [
+                            "next",
+                            "prev"
+                        ],
+                        "type": "string",
+                        "description": "Pagination direction",
+                        "name": "direction",
+                        "in": "query"
                     },
                     {
                         "type": "integer",
@@ -539,13 +513,13 @@ const docTemplate = `{
                     {
                         "type": "boolean",
                         "default": false,
-                        "description": "Renew page and ignore start_id",
+                        "description": "Force refresh ignoring cache",
                         "name": "renew",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Since",
+                        "description": "Since timestamp",
                         "name": "since",
                         "in": "query"
                     },
@@ -557,8 +531,74 @@ const docTemplate = `{
                             "global"
                         ],
                         "type": "string",
-                        "description": "string enum",
+                        "description": "Feed context",
                         "name": "context",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/getnotifications": {
+            "get": {
+                "description": "Returns notes that mention or reply to the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Retrieve notifications",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Unix timestamp cursor (event_created_at); 0 loads the latest page",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "next",
+                            "prev"
+                        ],
+                        "type": "string",
+                        "description": "Pagination direction",
+                        "name": "direction",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Results per page",
+                        "name": "per_page",
                         "in": "query"
                     }
                 ],
@@ -674,7 +714,7 @@ const docTemplate = `{
         },
         "/api/publish": {
             "post": {
-                "description": "Get count of new notes",
+                "description": "Publishes a new note or a reply to an existing note and broadcasts it to relays",
                 "consumes": [
                     "application/json"
                 ],
@@ -684,7 +724,7 @@ const docTemplate = `{
                 "tags": [
                     "publish"
                 ],
-                "summary": "Get count of new notes",
+                "summary": "Publish a note or reply",
                 "parameters": [
                     {
                         "description": "Body for the retrieval of data",
@@ -1053,29 +1093,6 @@ const docTemplate = `{
                 },
                 "msg": {
                     "type": "string"
-                }
-            }
-        },
-        "http.PageRequest": {
-            "type": "object",
-            "properties": {
-                "context": {
-                    "type": "string"
-                },
-                "cursor": {
-                    "type": "integer"
-                },
-                "direction": {
-                    "type": "string"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "renew": {
-                    "type": "boolean"
-                },
-                "since": {
-                    "type": "integer"
                 }
             }
         },

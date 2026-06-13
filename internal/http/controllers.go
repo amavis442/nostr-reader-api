@@ -128,13 +128,12 @@ func (c *Controller) parseUrlParams(r *http.Request) PageRequest {
 // @Tags         notes
 // @Accept       json
 // @Produce      json
-// @Param		 cursor	query	int	true	"Cursor"
-// @Param		 start_id	query	int	true	"Start id"
-// @Param		 end_id		query	int	true	"End id"
-// @Param		 per_page	query	int	false	"Results per page"	Default(10)
-// @Param		 renew		query	bool	false	"Renew page and ignore start_id" Default(false)
-// @Param		 since		query	int	false	"Since"
-// @Param		context	query string false "string enum" Enums(follow, bookmark, refresh, global)
+// @Param		cursor		query	int		false	"Unix timestamp cursor (event_created_at); 0 loads the latest page"
+// @Param		direction	query	string	false	"Pagination direction" Enums(next,prev)
+// @Param		per_page	query	int		false	"Results per page" Default(10)
+// @Param		renew		query	bool	false	"Force refresh ignoring cache" Default(false)
+// @Param		since		query	int		false	"Since timestamp"
+// @Param		context		query	string	false	"Feed context" Enums(follow,bookmark,refresh,global)
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"
@@ -201,12 +200,15 @@ func (c *Controller) GetNotes() http.HandlerFunc {
 }
 
 // GetInbox godoc
-// @Summary      Retrieve stored Notes
-// @Description  get Notes that you responded to
+// @Summary      Retrieve inbox notes
+// @Description  Returns notes from threads the authenticated user has participated in
 // @Tags         notes
 // @Accept       json
 // @Produce      json
-// @Param        Body body PageRequest true "Body for the retrieval of data"
+// @Param		cursor		query	int		false	"Unix timestamp cursor (event_created_at); 0 loads the latest page"
+// @Param		direction	query	string	false	"Pagination direction" Enums(next,prev)
+// @Param		per_page	query	int		false	"Results per page" Default(10)
+// @Param		since		query	int		false	"Since timestamp"
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"
@@ -241,6 +243,20 @@ func (c *Controller) GetInbox() http.HandlerFunc {
 	}
 }
 
+// GetNotifications godoc
+// @Summary      Retrieve notifications
+// @Description  Returns notes that mention or reply to the authenticated user
+// @Tags         notes
+// @Accept       json
+// @Produce      json
+// @Param		cursor		query	int		false	"Unix timestamp cursor (event_created_at); 0 loads the latest page"
+// @Param		direction	query	string	false	"Pagination direction" Enums(next,prev)
+// @Param		per_page	query	int		false	"Results per page" Default(10)
+// @Success      200  {object}  Response
+// @Failure      400  {string}  string    "error"
+// @Failure      404  {string}  string    "error"
+// @Failure      500  {string}  string    "error"
+// @Router       /api/getnotifications [get]
 func (c *Controller) GetNotifications() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -774,17 +790,11 @@ func (c *Controller) GetRelays() http.HandlerFunc {
 
 // GetNewNotesCount godoc
 // @Summary      Get count of new notes
-// @Description  Get count of new notes
+// @Description  Returns the number of notes newer than the last seen note id
 // @Tags         notes
 // @Accept       json
 // @Produce      json
-// @Param		 cursor	query	int	true	"Cursor"
-// @Param		 start_id	query	int	true	"Start id"
-// @Param		 end_id		query	int	true	"End id"
-// @Param		 per_page	query	int	false	"Results per page"	Default(10)
-// @Param		 renew		query	bool	false	"Renew page and ignore start_id" Default(false)
-// @Param		 since		query	int	false	"Since"
-// @Param		context	query string false "string enum" Enums(follow, bookmark, refresh, global)
+// @Param		context	query	string	false	"Feed context" Enums(follow,bookmark,refresh,global)
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"
@@ -972,8 +982,8 @@ func (c *Controller) PreviewLink() http.HandlerFunc {
 }
 
 // Publish godoc
-// @Summary      Get count of new notes
-// @Description  Get count of new notes
+// @Summary      Publish a note or reply
+// @Description  Publishes a new note or a reply to an existing note and broadcasts it to relays
 // @Tags         publish
 // @Accept       json
 // @Produce      json
@@ -1065,9 +1075,9 @@ func (c *Controller) Publish() http.HandlerFunc {
 
 }
 
-// SetMetaData godoc
-// @Summary      Set your profile data
-// @Description  Set your profile data
+// GetMetaData godoc
+// @Summary      Get your profile data
+// @Description  Fetches the authenticated user's profile metadata from relays
 // @Tags         profile
 // @Accept       json
 // @Produce      json
