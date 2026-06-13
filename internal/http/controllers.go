@@ -58,13 +58,12 @@ var syncHash string = ""
 
 // Send from client API
 type PageRequest struct {
-	Cursor     uint64 `json:"cursor"`
-	PrevCursor uint64 `json:"prev_cursor"`
-	NextCursor uint64 `json:"next_cursor"`
-	PerPage    uint   `json:"per_page"`
-	Since      uint   `json:"since"`
-	Renew      bool   `json:"renew"`
-	Context    string `json:"context"`
+	Cursor    uint64 `json:"cursor"`
+	Direction string `json:"direction"`
+	PerPage   uint   `json:"per_page"`
+	Since     uint   `json:"since"`
+	Renew     bool   `json:"renew"`
+	Context   string `json:"context"`
 }
 
 // Response godoc
@@ -98,11 +97,8 @@ func (c *Controller) parseUrlParams(r *http.Request) PageRequest {
 	cursor := r.URL.Query().Get("cursor")
 	p.Cursor, _ = strconv.ParseUint(cursor, 10, 64)
 
-	next_cursor := r.URL.Query().Get("next_cursor")
-	p.NextCursor, _ = strconv.ParseUint(next_cursor, 10, 64)
-
-	prev_cursor := r.URL.Query().Get("prev_cursor")
-	p.PrevCursor, _ = strconv.ParseUint(prev_cursor, 10, 64)
+	direction := r.URL.Query().Get("direction")
+	p.Direction = direction
 
 	per_page := r.URL.Query().Get("per_page")
 	perpage, _ := strconv.ParseUint(per_page, 10, 64)
@@ -153,10 +149,8 @@ func (c *Controller) GetNotes() http.HandlerFunc {
 		p := c.parseUrlParams(r)
 
 		pagination := db.Pagination{}
-		pagination.SetPerPage(uint(p.PerPage))
 		pagination.SetCursor(p.Cursor)
-		pagination.SetPrev(p.PrevCursor)
-		pagination.SetNext(p.NextCursor)
+		pagination.SetDirection(p.Direction)
 		pagination.SetPerPage(p.PerPage)
 		pagination.SetSince(p.Since)
 
@@ -189,10 +183,8 @@ func (c *Controller) GetNotes() http.HandlerFunc {
 		if len(*data.Events) == 0 {
 			response.Status = "empty"
 			response.Message = "No results"
-			pagination.SetPerPage(uint(p.PerPage))
 			pagination.SetCursor(p.Cursor)
-			pagination.SetPrev(p.PrevCursor)
-			pagination.SetNext(0)
+			pagination.SetDirection(p.Direction)
 			pagination.SetPerPage(p.PerPage)
 			pagination.SetSince(p.Since)
 			data.Paging = &pagination
@@ -229,10 +221,8 @@ func (c *Controller) GetInbox() http.HandlerFunc {
 		p := c.parseUrlParams(r)
 
 		pagination := db.Pagination{}
-		pagination.SetPerPage(uint(p.PerPage))
 		pagination.SetCursor(p.Cursor)
-		pagination.SetPrev(p.PrevCursor)
-		pagination.SetNext(p.NextCursor)
+		pagination.SetDirection(p.Direction)
 		pagination.SetPerPage(p.PerPage)
 		pagination.SetSince(p.Since)
 
@@ -260,10 +250,8 @@ func (c *Controller) GetNotifications() http.HandlerFunc {
 		p := c.parseUrlParams(r)
 
 		pagination := db.Pagination{}
-		pagination.SetPerPage(uint(p.PerPage))
 		pagination.SetCursor(p.Cursor)
-		pagination.SetPrev(p.PrevCursor)
-		pagination.SetNext(p.NextCursor)
+		pagination.SetDirection(p.Direction)
 		pagination.SetPerPage(p.PerPage)
 		pagination.SetSince(p.Since)
 
@@ -656,7 +644,7 @@ func (c *Controller) RemoveBookMark() http.HandlerFunc {
 // @Tags         relay
 // @Accept       json
 // @Produce      json
-// @Param        Body body Relay true "Body for the retrieval of data"
+// @Param        Body body db.Relay true "Body for the retrieval of data"
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"
@@ -707,7 +695,7 @@ func (c *Controller) AddRelay() http.HandlerFunc {
 // @Tags         relay
 // @Accept       json
 // @Produce      json
-// @Param        Body body Relay true "Body for the retrieval of data"
+// @Param        Body body db.Relay true "Body for the retrieval of data"
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"
@@ -810,8 +798,6 @@ func (c *Controller) GetNewNotesCount() http.HandlerFunc {
 
 		var err error
 		var p PageRequest
-		cursor := r.URL.Query().Get("cursor")
-		p.Cursor, _ = strconv.ParseUint(cursor, 10, 64)
 
 		renew := r.URL.Query().Get("renew")
 		p.Renew, _ = strconv.ParseBool(renew)
@@ -1128,7 +1114,7 @@ func (c *Controller) GetMetaData() http.HandlerFunc {
 // @Tags         profile
 // @Accept       json
 // @Produce      json
-// @Param        Body body Profile true "Body for the retrieval of data"
+// @Param        Body body db.Profile true "Body for the retrieval of data"
 // @Success      200  {object}  Response
 // @Failure      400  {string}  string    "error"
 // @Failure      404  {string}  string    "error"

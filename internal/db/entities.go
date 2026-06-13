@@ -95,15 +95,15 @@ type Profile struct {
 	ID          uint           `gorm:"primaryKey" json:"-" db:"id"`
 	UID         uuid.UUID      `gorm:"type:uuid;" db:"uid"`
 	Pubkey      string         `gorm:"index,type:btree;not null;unique;type:varchar(100)" json:"pubkey" db:"pubkey"`
-	Name        NullString     `gorm:"type:varchar(255)" json:"name" db:"name"`
-	About       NullString     `gorm:"type:text" json:"about" db:"about"`
-	Picture     NullString     `gorm:"type:varchar(255)" json:"picture" db:"picture"`
-	Website     NullString     `gorm:"type:varchar(255)" json:"website" db:"website"`
-	Nip05       NullString     `gorm:"type:varchar(255)" json:"nip05" db:"nip05"`
-	Lud16       NullString     `gorm:"type:varchar(255)" json:"lud16" db:"lud16"`
-	DisplayName NullString     `gorm:"type:varchar(255)" json:"display_name" db:"display_name"`
+	Name        NullString     `gorm:"type:varchar(255)" json:"name" db:"name" swaggertype:"string"`
+	About       NullString     `gorm:"type:text" json:"about" db:"about" swaggertype:"string"`
+	Picture     NullString     `gorm:"type:varchar(255)" json:"picture" db:"picture" swaggertype:"string"`
+	Website     NullString     `gorm:"type:varchar(255)" json:"website" db:"website" swaggertype:"string"`
+	Nip05       NullString     `gorm:"type:varchar(255)" json:"nip05" db:"nip05" swaggertype:"string"`
+	Lud16       NullString     `gorm:"type:varchar(255)" json:"lud16" db:"lud16" swaggertype:"string"`
+	DisplayName NullString     `gorm:"type:varchar(255)" json:"display_name" db:"display_name" swaggertype:"string"`
 	Raw         []byte         `gorm:"not null;type:jsonb" json:"-" db:"raw"`
-	Urls        pq.StringArray `gorm:"type:text[];index:idx_profile_urls,type:gin" json:"urls" db:"urls"`
+	Urls        pq.StringArray `gorm:"type:text[];index:idx_profile_urls,type:gin" json:"urls" db:"urls" swaggertype:"array,string"`
 	CreatedAt   sql.NullTime   `gorm:"type:timestamp;default:current_timestamp" json:"-" db:"created_at"`
 	UpdatedAt   sql.NullTime   `gorm:"type:timestamp;default:null" json:"-" db:"updated_at"`
 	Followed    bool           `gorm:"type:bool;default:false;not null" json:"followed" db:"-"`
