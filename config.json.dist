@@ -4,7 +4,11 @@
         "password": "",
         "dbname": "",
         "port": 5432,
-        "host": "localhost"
+        "host": "localhost",
+        "retention": 7
+    },
+    "max_note_age": {
+        "days": 7
     },
     "server": {
         "port": 8080,
@@ -12,7 +16,7 @@
         "allowed_origins": []
     },
     "interval": 5,
-    "nostr': {
+    "nostr": {
 	    "privatekey": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
         "nip05": "https://nostrcheck.me/"
     },
