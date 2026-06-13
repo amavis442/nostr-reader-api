@@ -2,35 +2,28 @@ package db
 
 // Return to client API
 type Pagination struct {
-	Cursor         uint64 `json:"cursor"`
-	NextCursor     uint64 `json:"next_cursor"`
-	PreviousCursor uint64 `json:"previous_cursor"`
-	PerPage        uint   `json:"per_page,omitempty" query:"per_page"`
-	Since          uint   `json:"since"`
+	Cursor    uint64 `json:"cursor"`
+	Direction string `json:"direction"`
+	PerPage   uint   `json:"per_page,omitempty" query:"per_page"`
+	Since     uint   `json:"since"`
+	HasNext   bool   `json:"has_next"`
+	HasPrev   bool   `json:"has_prev"`
 }
 
 func (p *Pagination) SetCursor(cursor uint64) {
 	p.Cursor = cursor
 }
 
-func (p *Pagination) SetPrev(prev uint64) {
-	p.PreviousCursor = prev
-}
-
-func (p *Pagination) GetPrev() uint64 {
-	return p.PreviousCursor
-}
-
-func (p *Pagination) SetNext(next_cursor uint64) {
-	p.NextCursor = next_cursor
-}
-
-func (p *Pagination) GetNext() uint64 {
-	return p.NextCursor
-}
-
-func (p *Pagination) GetPage() uint64 {
+func (p *Pagination) GetCursor() uint64 {
 	return p.Cursor
+}
+
+func (p *Pagination) SetDirection(direction string) {
+	p.Direction = direction
+}
+
+func (p *Pagination) GetDirection() string {
+	return p.Direction
 }
 
 /*

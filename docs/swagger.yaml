@@ -1,61 +1,22 @@
-basePath: /
 definitions:
-  main.BookMark:
-    properties:
-      event_id:
-        type: string
-    type: object
-  main.Msg:
-    properties:
-      event_id:
-        description: If it is a reply
-        type: string
-      msg:
-        type: string
-    type: object
-  main.NullString:
-    properties:
-      string:
-        type: string
-      valid:
-        description: Valid is true if String is not NULL
-        type: boolean
-    type: object
-  main.PageRequest:
-    properties:
-      context:
-        type: string
-      cursor:
-        type: integer
-      next_cursor:
-        type: integer
-      per_page:
-        type: integer
-      prev_cursor:
-        type: integer
-      renew:
-        type: boolean
-      since:
-        type: integer
-    type: object
-  main.Profile:
+  db.Profile:
     properties:
       about:
-        $ref: '#/definitions/main.NullString'
+        type: string
       blocked:
         type: boolean
       display_name:
-        $ref: '#/definitions/main.NullString'
+        type: string
       followed:
         type: boolean
       lud16:
-        $ref: '#/definitions/main.NullString'
+        type: string
       name:
-        $ref: '#/definitions/main.NullString'
+        type: string
       nip05:
-        $ref: '#/definitions/main.NullString'
+        type: string
       picture:
-        $ref: '#/definitions/main.NullString'
+        type: string
       pubkey:
         type: string
       uid:
@@ -65,14 +26,9 @@ definitions:
           type: string
         type: array
       website:
-        $ref: '#/definitions/main.NullString'
-    type: object
-  main.Pubkey:
-    properties:
-      pubkey:
         type: string
     type: object
-  main.Relay:
+  db.Relay:
     properties:
       read:
         type: boolean
@@ -83,7 +39,40 @@ definitions:
       write:
         type: boolean
     type: object
-  main.Response:
+  http.BookMark:
+    properties:
+      event_id:
+        type: string
+    type: object
+  http.Msg:
+    properties:
+      event_id:
+        description: If it is a reply
+        type: string
+      msg:
+        type: string
+    type: object
+  http.PageRequest:
+    properties:
+      context:
+        type: string
+      cursor:
+        type: integer
+      direction:
+        type: string
+      per_page:
+        type: integer
+      renew:
+        type: boolean
+      since:
+        type: integer
+    type: object
+  http.Pubkey:
+    properties:
+      pubkey:
+        type: string
+    type: object
+  http.Response:
     description: Standard response to return to client
     properties:
       context:
@@ -94,19 +83,8 @@ definitions:
       status:
         type: string
     type: object
-host: localhost:8080
 info:
-  contact:
-    email: support@swaggerouter.io
-    name: API Support
-    url: http://www.swaggerouter.io/support
-  description: Nostr Reader Api.
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swaggerouter.io/terms/
-  title: Nostr Reader API
-  version: "1.0"
+  contact: {}
 paths:
   /api/addrelay:
     post:
@@ -119,14 +97,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Relay'
+          $ref: '#/definitions/db.Relay'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -153,14 +131,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Pubkey'
+          $ref: '#/definitions/http.Pubkey'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -187,14 +165,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.BookMark'
+          $ref: '#/definitions/http.BookMark'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -221,14 +199,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Pubkey'
+          $ref: '#/definitions/http.Pubkey'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -255,7 +233,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -282,14 +260,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.PageRequest'
+          $ref: '#/definitions/http.PageRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -316,7 +294,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -343,7 +321,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -409,7 +387,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -475,7 +453,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -502,7 +480,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -529,7 +507,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -556,14 +534,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Msg'
+          $ref: '#/definitions/http.Msg'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -590,14 +568,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.BookMark'
+          $ref: '#/definitions/http.BookMark'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -624,14 +602,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Relay'
+          $ref: '#/definitions/db.Relay'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -647,6 +625,33 @@ paths:
       summary: Remove relay
       tags:
       - relay
+  /api/searchprofiles:
+    get:
+      consumes:
+      - application/json
+      description: Search for profiles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.Response'
+        "400":
+          description: error
+          schema:
+            type: string
+        "404":
+          description: error
+          schema:
+            type: string
+        "500":
+          description: error
+          schema:
+            type: string
+      summary: Search for profiles
+      tags:
+      - profile
   /api/setmetadata:
     post:
       consumes:
@@ -658,14 +663,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Profile'
+          $ref: '#/definitions/db.Profile'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:
@@ -692,14 +697,14 @@ paths:
         name: Body
         required: true
         schema:
-          $ref: '#/definitions/main.Pubkey'
+          $ref: '#/definitions/http.Pubkey'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.Response'
+            $ref: '#/definitions/http.Response'
         "400":
           description: error
           schema:

@@ -9,16 +9,7 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swaggerouter.io/terms/",
-        "contact": {
-            "name": "API Support",
-            "url": "http://www.swaggerouter.io/support",
-            "email": "support@swaggerouter.io"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -44,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Relay"
+                            "$ref": "#/definitions/db.Relay"
                         }
                     }
                 ],
@@ -52,7 +43,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -96,7 +87,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Pubkey"
+                            "$ref": "#/definitions/http.Pubkey"
                         }
                     }
                 ],
@@ -104,7 +95,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -148,7 +139,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.BookMark"
+                            "$ref": "#/definitions/http.BookMark"
                         }
                     }
                 ],
@@ -156,7 +147,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -200,7 +191,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Pubkey"
+                            "$ref": "#/definitions/http.Pubkey"
                         }
                     }
                 ],
@@ -208,7 +199,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -249,7 +240,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -293,7 +284,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.PageRequest"
+                            "$ref": "#/definitions/http.PageRequest"
                         }
                     }
                 ],
@@ -301,7 +292,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -342,7 +333,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -383,7 +374,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -479,7 +470,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -575,7 +566,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -616,7 +607,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -657,7 +648,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -701,7 +692,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Msg"
+                            "$ref": "#/definitions/http.Msg"
                         }
                     }
                 ],
@@ -709,7 +700,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -753,7 +744,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.BookMark"
+                            "$ref": "#/definitions/http.BookMark"
                         }
                     }
                 ],
@@ -761,7 +752,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -805,7 +796,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Relay"
+                            "$ref": "#/definitions/db.Relay"
                         }
                     }
                 ],
@@ -813,7 +804,48 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/searchprofiles": {
+            "get": {
+                "description": "Search for profiles",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Search for profiles",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -857,7 +889,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Profile"
+                            "$ref": "#/definitions/db.Profile"
                         }
                     }
                 ],
@@ -865,7 +897,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -909,7 +941,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/main.Pubkey"
+                            "$ref": "#/definitions/http.Pubkey"
                         }
                     }
                 ],
@@ -917,7 +949,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.Response"
+                            "$ref": "#/definitions/http.Response"
                         }
                     },
                     "400": {
@@ -943,90 +975,32 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.BookMark": {
-            "type": "object",
-            "properties": {
-                "event_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.Msg": {
-            "type": "object",
-            "properties": {
-                "event_id": {
-                    "description": "If it is a reply",
-                    "type": "string"
-                },
-                "msg": {
-                    "type": "string"
-                }
-            }
-        },
-        "main.NullString": {
-            "type": "object",
-            "properties": {
-                "string": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if String is not NULL",
-                    "type": "boolean"
-                }
-            }
-        },
-        "main.PageRequest": {
-            "type": "object",
-            "properties": {
-                "context": {
-                    "type": "string"
-                },
-                "cursor": {
-                    "type": "integer"
-                },
-                "next_cursor": {
-                    "type": "integer"
-                },
-                "per_page": {
-                    "type": "integer"
-                },
-                "prev_cursor": {
-                    "type": "integer"
-                },
-                "renew": {
-                    "type": "boolean"
-                },
-                "since": {
-                    "type": "integer"
-                }
-            }
-        },
-        "main.Profile": {
+        "db.Profile": {
             "type": "object",
             "properties": {
                 "about": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "blocked": {
                     "type": "boolean"
                 },
                 "display_name": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "followed": {
                     "type": "boolean"
                 },
                 "lud16": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "name": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "nip05": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "picture": {
-                    "$ref": "#/definitions/main.NullString"
+                    "type": "string"
                 },
                 "pubkey": {
                     "type": "string"
@@ -1041,19 +1015,11 @@ const docTemplate = `{
                     }
                 },
                 "website": {
-                    "$ref": "#/definitions/main.NullString"
-                }
-            }
-        },
-        "main.Pubkey": {
-            "type": "object",
-            "properties": {
-                "pubkey": {
                     "type": "string"
                 }
             }
         },
-        "main.Relay": {
+        "db.Relay": {
             "type": "object",
             "properties": {
                 "read": {
@@ -1070,7 +1036,58 @@ const docTemplate = `{
                 }
             }
         },
-        "main.Response": {
+        "http.BookMark": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.Msg": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "description": "If it is a reply",
+                    "type": "string"
+                },
+                "msg": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.PageRequest": {
+            "type": "object",
+            "properties": {
+                "context": {
+                    "type": "string"
+                },
+                "cursor": {
+                    "type": "integer"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "per_page": {
+                    "type": "integer"
+                },
+                "renew": {
+                    "type": "boolean"
+                },
+                "since": {
+                    "type": "integer"
+                }
+            }
+        },
+        "http.Pubkey": {
+            "type": "object",
+            "properties": {
+                "pubkey": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.Response": {
             "description": "Standard response to return to client",
             "type": "object",
             "properties": {
@@ -1091,12 +1108,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Nostr Reader API",
-	Description:      "Nostr Reader Api.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
