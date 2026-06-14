@@ -790,7 +790,7 @@ func (c *Controller) GetRelays() http.HandlerFunc {
 
 // GetNewNotesCount godoc
 // @Summary      Get count of new notes
-// @Description  Returns the number of notes newer than the last seen note id
+// @Description  Returns the number of notes newer than the stored read watermark for the given context
 // @Tags         notes
 // @Accept       json
 // @Produce      json
@@ -833,24 +833,7 @@ func (c *Controller) GetNewNotesCount() http.HandlerFunc {
 		response.Message = "new notes count"
 		response.Context = p.Context
 
-		// Count notes newer than the last-seen id, not newer than the cursor.
-		// The cursor is the lower bound of the current page, so every note on
-		// screen already has id > cursor — counting against it overstates the
-		// "new notes" badge by (part of) the current page. The last-seen id
-		// (MAX(note_id) from the seen table) only excludes notes already shown.
-		lastSeenID, err := c.Db.GetLastSeenID(ctx)
-		if err != nil {
-			response.Status = "error"
-			response.Message = err.Error()
-			response.Data = "0"
-
-			if err = json.NewEncoder(w).Encode(&response); err != nil {
-				panic(err)
-			}
-			return
-		}
-
-		count, err := c.Db.GetNewNotesCount(ctx, uint64(lastSeenID), options)
+		count, err := c.Db.GetNewNotesCount(ctx, p.Context, options)
 
 		response.Data = fmt.Sprintf("%d", count)
 
@@ -867,42 +850,80 @@ func (c *Controller) GetNewNotesCount() http.HandlerFunc {
 	}
 }
 
-// GetLastSeenID godoc
-// @Summary      Last seen note id
-// @Description  Last seen note id
+// MarkCaughtUp godoc
+// @Summary      Mark feed as caught up
+// @Description  Stores the current MAX(event_created_at) for the given context as the read watermark. Call this when paginating forward yields no more notes.
 // @Tags         notes
 // @Accept       json
 // @Produce      json
+// @Param        context  query  string  false  "Feed context" Enums(follow,bookmark,global)
 // @Success      200  {object}  Response
-// @Failure      400  {string}  string    "error"
-// @Failure      404  {string}  string    "error"
-// @Failure      500  {string}  string    "error"
-// @Router       /api/getlastseenid [get]
-func (c *Controller) GetLastSeenID() http.HandlerFunc {
+// @Failure      500  {string}  string  "error"
+// @Router       /api/notes/caught-up [post]
+func (c *Controller) MarkCaughtUp() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*") // for CORS
-		w.WriteHeader(http.StatusOK)
+		feedContext := r.URL.Query().Get("context")
+		if feedContext == "" {
+			feedContext = "follow"
+		}
 
-		maxid, err := c.Db.GetLastSeenID(ctx)
+		var options db.Options
+		switch feedContext {
+		case "bookmark":
+			options = db.Options{Follow: false, BookMark: true}
+		case "global":
+			options = db.Options{Follow: false, BookMark: false}
+		default:
+			options = db.Options{Follow: true, BookMark: false}
+		}
 
-		response := &Response{}
-		response.Status = "ok"
-		response.Message = "new notes count"
-		response.Data = maxid
+		response := &Response{Status: "ok", Message: "caught up", Context: feedContext}
+
+		if err := c.Db.SetCaughtUpAt(ctx, feedContext, options); err != nil {
+			response.Status = "error"
+			response.Message = err.Error()
+		}
+
+		render.JSON(w, r, response)
+	}
+}
+
+// GetCaughtUp godoc
+// @Summary      Get read watermark
+// @Description  Returns the event_created_at timestamp that was last stored as the read watermark for the given context.
+// @Tags         notes
+// @Accept       json
+// @Produce      json
+// @Param        context  query  string  false  "Feed context" Enums(follow,bookmark,global)
+// @Success      200  {object}  Response
+// @Failure      500  {string}  string  "error"
+// @Router       /api/notes/caught-up [get]
+func (c *Controller) GetCaughtUp() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+
+		feedContext := r.URL.Query().Get("context")
+		if feedContext == "" {
+			feedContext = "follow"
+		}
+
+		at, err := c.Db.GetCaughtUpAt(ctx, feedContext)
+
+		response := &Response{Status: "ok", Message: "caught up at", Context: feedContext, Data: at}
 
 		if err != nil {
 			response.Status = "error"
 			response.Message = err.Error()
 			response.Data = 0
 		}
-		err = json.NewEncoder(w).Encode(response)
-		if err != nil {
-			panic(err)
-		}
+
+		render.JSON(w, r, response)
 	}
 }
 
