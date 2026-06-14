@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -446,29 +447,56 @@ type Options struct {
 	Renew    bool
 }
 
-func (st *Storage) GetNewNotesCount(ctx context.Context, cursor uint64, options Options) (int, error) {
+func (st *Storage) GetCaughtUpAt(ctx context.Context, feedContext string) (int64, error) {
+	var watermark Watermark
+	result := st.GormDB.WithContext(ctx).Where("context = ?", feedContext).First(&watermark)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return time.Now().Add(-24 * time.Hour).Unix(), nil
+		}
+		return 0, result.Error
+	}
+	if watermark.EventCreatedAt == 0 {
+		return time.Now().Add(-24 * time.Hour).Unix(), nil
+	}
+	return watermark.EventCreatedAt, nil
+}
+
+func (st *Storage) SetCaughtUpAt(ctx context.Context, feedContext string, options Options) error {
+	var maxAt int64
+	st.GormDB.WithContext(ctx).Model(&NotesAndProfiles{}).
+		Select("COALESCE(MAX(event_created_at), 0)").
+		Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
+		Scan(&maxAt)
+
+	watermark := Watermark{
+		Context:        feedContext,
+		EventCreatedAt: maxAt,
+		UpdatedAt:      time.Now(),
+	}
+	return st.GormDB.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "context"}},
+			DoUpdates: clause.AssignmentColumns([]string{"event_created_at", "updated_at"}),
+		}).Create(&watermark).Error
+}
+
+func (st *Storage) GetNewNotesCount(ctx context.Context, feedContext string, options Options) (int, error) {
+	caughtUpAt, err := st.GetCaughtUpAt(ctx, feedContext)
+	if err != nil {
+		return 0, err
+	}
 	var count int
-	tx := st.GormDB.Model(&NotesAndProfiles{}).
+	tx := st.GormDB.WithContext(ctx).Model(&NotesAndProfiles{}).
 		Select(`COUNT(id)`).
-		Where("id > ?", cursor).
-		Where("followed = ? and bookmarked = ?", options.Follow, options.BookMark).
+		Where("event_created_at > ?", caughtUpAt).
+		Where("followed = ? AND bookmarked = ?", options.Follow, options.BookMark).
 		Find(&count)
 
 	if tx.Error != nil {
 		return 0, tx.Error
 	}
 	return count, nil
-}
-
-func (st *Storage) GetLastSeenID(ctx context.Context) (int, error) {
-	var maxId int
-	tx := st.GormDB.Model(&Seen{}).
-		Select(`MAX(coalesce(note_id,0))`).Scan(&maxId)
-
-	if tx.Error != nil {
-		return 0, tx.Error
-	}
-	return maxId, nil
 }
 
 
@@ -588,21 +616,10 @@ func (st *Storage) GetNotes(ctx context.Context, context string, p *Pagination, 
 		}
 	}
 
-	eventMap, keys, seenMap, err := st.procesEventRows(&rows)
+	eventMap, keys, _, err := st.procesEventRows(&rows)
 	if err != nil {
 		slog.Error(logger.GetCallerInfo(1), "error", err.Error())
 		return &[]Event{}, err
-	}
-
-	tx = st.GormDB.WithContext(ctx).Model(&Seen{})
-	seens := []*Seen{}
-	for noteid, eventid := range seenMap {
-		seens = append(seens, &Seen{NoteID: uint(noteid), EventId: eventid})
-	}
-
-	result := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&seens)
-	if result.Error != nil {
-		return &[]Event{}, result.Error
 	}
 
 	st.getChildren(ctx, eventMap)
@@ -1079,12 +1096,11 @@ func (st *Storage) FindEvent(ctx context.Context, id string) (Event, error) {
 	FROM trees t, notes e
 	LEFT JOIN profiles u ON (u.pubkey = e.pubkey )
 	LEFT JOIN blocks b on (b.pubkey = e.pubkey)
-	LEFT JOIN seens s on (s.event_id = e.event_id)
 	LEFT JOIN follows f ON (f.pubkey = e.pubkey)
 	LEFT JOIN bookmarks bm ON (bm.note_id = e.id)
 	WHERE root_event_id IN ($1)
 	AND e.event_id = t.event_id
-	AND e.kind = 1 AND b.pubkey IS NULL AND s.event_id IS NULL AND e.garbage = false;`
+	AND e.kind = 1 AND b.pubkey IS NULL AND e.garbage = false;`
 
 	var treeRows *sql.Rows
 	treeRows, err = st.GormDB.WithContext(ctx).Raw(treeQry, event.Event.ID).Rows()

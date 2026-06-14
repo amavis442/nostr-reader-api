@@ -153,15 +153,13 @@ func (entity *Follow) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-type Seen struct {
-	ID        uint      `gorm:"primaryKey" json:"-"`
-	EventId   string    `gorm:"type:varchar(100);index,type:btree;not null;unique;" json:"event_id"`
-	NoteID    uint      `gorm:"type:bigint;index,type:btree;not null;unique;" json:"-"`
-	CreatedAt time.Time `gorm:"type:timestamp;default:current_timestamp" json:"-"`
-	UpdatedAt time.Time `gorm:"type:timestamp;default:null" json:"-"`
+type Watermark struct {
+	Context        string    `gorm:"primaryKey;type:varchar(20)" json:"context"`
+	EventCreatedAt int64     `gorm:"type:bigint;not null;default:0" json:"event_created_at"`
+	UpdatedAt      time.Time `gorm:"type:TIMESTAMPTZ;default:current_timestamp" json:"-"`
 }
 
-func (entity *Seen) BeforeUpdate(tx *gorm.DB) error {
+func (entity *Watermark) BeforeUpdate(tx *gorm.DB) error {
 	entity.UpdatedAt = time.Now()
 	return nil
 }

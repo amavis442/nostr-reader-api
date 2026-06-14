@@ -45,7 +45,8 @@ func routes(c *Controller, port string, cfg *ServerConfig) *chi.Mux {
 
 	router.Get("/api/getnewnotescount", c.GetNewNotesCount())
 
-	router.Get("/api/getlastseenid", c.GetLastSeenID())
+	router.Get("/api/notes/caught-up", c.GetCaughtUp())
+	router.Post("/api/notes/caught-up", c.MarkCaughtUp())
 
 	/**
 	 * Put a user on the naughty list
